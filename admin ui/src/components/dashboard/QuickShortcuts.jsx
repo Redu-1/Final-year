@@ -567,28 +567,8 @@ const QuickShortcuts = () => {
       iconColor: 'text-emerald-600',
       hoverBg: 'hover:bg-emerald-100'
     },
-    {
-      id: 3,
-      name: 'Notify Users',
-      description: 'Send notifications to all users',
-      icon: MegaphoneIcon,
-      color: 'emerald',
-      action: () => setIsNotificationModalOpen(true),
-      bg: 'bg-emerald-50',
-      iconColor: 'text-emerald-600',
-      hoverBg: 'hover:bg-emerald-100'
-    },
-    {
-      id: 4,
-      name: 'Backup DB',
-      description: 'Create system backup',
-      icon: ArchiveBoxIcon,
-      color: 'emerald',
-      action: handleBackup,
-      bg: 'bg-emerald-50',
-      iconColor: 'text-emerald-600',
-      hoverBg: 'hover:bg-emerald-100'
-    }
+
+ 
   ];
 
   return (

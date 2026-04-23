@@ -1,67 +1,126 @@
-// src/pages/Settings/Settings.jsx
+// src/pages/AdminFeedback.jsx
 import { useState, useEffect } from 'react';
 import { 
-  BellIcon,
-  ShieldCheckIcon,
-  GlobeAltIcon,
-  ClockIcon,
-  DocumentTextIcon,
-  UserGroupIcon,
-  ArrowPathIcon,
-  CloudArrowUpIcon,
-  LockClosedIcon,
   EnvelopeIcon,
-  DevicePhoneMobileIcon,
-  Cog6ToothIcon,
+  UserIcon,
+  ChatBubbleLeftRightIcon,
   CheckCircleIcon,
-  ExclamationTriangleIcon
+  XCircleIcon,
+  EyeIcon,
+  TrashIcon,
+  ArrowPathIcon,
+  ExclamationTriangleIcon,
+  CalendarIcon,
+  MagnifyingGlassIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  HeartIcon,
+  StarIcon
 } from '@heroicons/react/24/outline';
+import { getApiBaseUrl } from '../services/herbApi';
 
-const Settings = () => {
-  const [activeTab, setActiveTab] = useState('general');
+const AdminFeedback = () => {
+  const [feedbacks, setFeedbacks] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [selectedFeedback, setSelectedFeedback] = useState(null);
+  const [showModal, setShowModal] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState('success');
 
-  // Load settings from localStorage
-  const [settings, setSettings] = useState(() => {
-    const savedSettings = localStorage.getItem('herbiSense_settings');
-    if (savedSettings) {
-      return JSON.parse(savedSettings);
-    }
-    return {
-      general: {
-        language: 'en',
-        timezone: 'UTC-05:00',
-        dateFormat: 'MM/DD/YYYY',
-        timeFormat: '12h'
-      },
-      notifications: {
-        emailAlerts: true,
-        systemUpdates: true,
-        securityAlerts: true,
-        marketingEmails: false,
-        pushNotifications: false,
-        desktopNotifications: true
-      },
-      security: {
-        twoFactorEnabled: false,
-        sessionTimeout: 30,
-        loginAlerts: true
-      },
-      system: {
-        autoSave: true,
-        telemetry: false,
-        cacheSize: '128 MB',
-        lastBackup: '2024-02-13'
-      }
-    };
-  });
+  const API_BASE_URL = getApiBaseUrl();
 
-  // Save settings to localStorage whenever they change
-  useEffect(() => {
-    localStorage.setItem('herbiSense_settings', JSON.stringify(settings));
-  }, [settings]);
+  // Fetch feedback from API
+  const fetchFeedbacks = async () => {
+    setIsLoading(true);
+    try {
+      const token = localStorage.getItem('herbisense_token') || localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/feedback/admin/all`, {
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : {},
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('📥 Feedbacks fetched:', data);
+        
+        if (data.success && Array.isArray(data.data)) {
+          setFeedbacks(data.data);
+        } else if (Array.isArray(data)) {
+          setFeedbacks(data);
+        } else {
+          setFeedbacks([]);
+        }
+      } else {
+        console.error('Failed to fetch feedbacks');
+        setFeedbacks([]);
+      }
+    } catch (error) {
+      console.error('Error fetching feedbacks:', error);
+      setFeedbacks([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Update feedback status
+  const updateFeedbackStatus = async (feedbackId, status) => {
+    try {
+      const token = localStorage.getItem('herbisense_token') || localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/feedback/${feedbackId}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : {},
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status })
+      });
+
+      if (response.ok) {
+        showNotification(`Feedback marked as ${status}`, 'success');
+        fetchFeedbacks();
+      } else {
+        showNotification('Failed to update status', 'error');
+      }
+    } catch (error) {
+      console.error('Error updating feedback:', error);
+      showNotification('Error updating status', 'error');
+    }
+  };
+
+  // Delete feedback
+  const deleteFeedback = async (feedbackId) => {
+    if (!confirm('Are you sure you want to delete this feedback? This action cannot be undone.')) return;
+
+    try {
+      const token = localStorage.getItem('herbisense_token') || localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/feedback/${feedbackId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : {},
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        showNotification('Feedback deleted successfully', 'success');
+        fetchFeedbacks();
+        if (selectedFeedback?.id === feedbackId) {
+          setShowModal(false);
+          setSelectedFeedback(null);
+        }
+      } else {
+        showNotification('Failed to delete feedback', 'error');
+      }
+    } catch (error) {
+      console.error('Error deleting feedback:', error);
+      showNotification('Error deleting feedback', 'error');
+    }
+  };
 
   // Show toast notification
   const showNotification = (message, type = 'success') => {
@@ -71,160 +130,59 @@ const Settings = () => {
     setTimeout(() => setShowToast(false), 3000);
   };
 
-  // ========== GENERAL SETTINGS HANDLERS ==========
-  const handleLanguageChange = (e) => {
-    setSettings({
-      ...settings,
-      general: { ...settings.general, language: e.target.value }
-    });
-    showNotification('Language updated');
-  };
+  // Filter feedbacks
+  const filteredFeedbacks = feedbacks.filter(feedback => {
+    const matchesSearch = searchQuery === '' || 
+      feedback.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      feedback.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      feedback.message?.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesStatus = statusFilter === 'all' || feedback.status === statusFilter;
+    
+    return matchesSearch && matchesStatus;
+  });
 
-  const handleTimezoneChange = (e) => {
-    setSettings({
-      ...settings,
-      general: { ...settings.general, timezone: e.target.value }
-    });
-    showNotification('Timezone updated');
-  };
-
-  const handleDateFormatChange = (format) => {
-    setSettings({
-      ...settings,
-      general: { ...settings.general, dateFormat: format }
-    });
-    showNotification('Date format updated');
-  };
-
-  const handleTimeFormatChange = (format) => {
-    setSettings({
-      ...settings,
-      general: { ...settings.general, timeFormat: format }
-    });
-    showNotification('Time format updated');
-  };
-
-  // ========== NOTIFICATION HANDLERS ==========
-  const toggleNotification = (key) => {
-    setSettings({
-      ...settings,
-      notifications: {
-        ...settings.notifications,
-        [key]: !settings.notifications[key]
-      }
-    });
-    showNotification(`${key === 'emailAlerts' ? 'Email alerts' : 
-                      key === 'systemUpdates' ? 'System updates' :
-                      key === 'securityAlerts' ? 'Security alerts' :
-                      key === 'marketingEmails' ? 'Marketing emails' :
-                      key === 'pushNotifications' ? 'Push notifications' :
-                      'Desktop notifications'} ${!settings.notifications[key] ? 'enabled' : 'disabled'}`);
-  };
-
-  const handleTestNotification = () => {
-    showNotification('Test notification sent! Check your device', 'info');
-  };
-
-  // ========== SECURITY HANDLERS ==========
-  const handleChangePassword = () => {
-    showNotification('Password change link sent to your email', 'info');
-  };
-
-  const handleEnable2FA = () => {
-    setSettings({
-      ...settings,
-      security: { ...settings.security, twoFactorEnabled: true }
-    });
-    showNotification('Two-factor authentication enabled');
-  };
-
-  const handleDisable2FA = () => {
-    if (window.confirm('Are you sure you want to disable two-factor authentication?')) {
-      setSettings({
-        ...settings,
-        security: { ...settings.security, twoFactorEnabled: false }
-      });
-      showNotification('Two-factor authentication disabled');
+  // Get status badge color
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case 'read':
+        return { bg: 'bg-blue-100', text: 'text-blue-800', label: 'Read' };
+      case 'replied':
+        return { bg: 'bg-emerald-100', text: 'text-emerald-800', label: 'Replied' };
+      case 'archived':
+        return { bg: 'bg-gray-100', text: 'text-gray-800', label: 'Archived' };
+      default:
+        return { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'New' };
     }
   };
 
-  const handleRevokeSessions = () => {
-    if (window.confirm('Revoke all active sessions? You will be logged out everywhere except this device.')) {
-      showNotification('All other sessions revoked', 'warning');
-    }
-  };
-
-  const handleViewLogs = () => {
-    showNotification('Opening audit logs...', 'info');
-  };
-
-  const handleSessionTimeoutChange = (e) => {
-    setSettings({
-      ...settings,
-      security: { ...settings.security, sessionTimeout: parseInt(e.target.value) }
+  // Format date
+  const formatDate = (dateString) => {
+    if (!dateString) return 'Unknown';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
     });
-    showNotification(`Session timeout updated to ${e.target.value} minutes`);
   };
 
-  // ========== SYSTEM HANDLERS ==========
-  const handleClearCache = () => {
-    if (window.confirm('Clear system cache? This may improve performance.')) {
-      setTimeout(() => {
-        showNotification('Cache cleared successfully!');
-      }, 1000);
-    }
+  // Get initials for avatar
+  const getInitials = (name) => {
+    return name?.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2) || 'U';
   };
 
-  const handleExportData = () => {
-    const dataStr = JSON.stringify(settings, null, 2);
-    const blob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `herbisense_settings_backup_${new Date().toISOString().split('T')[0]}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
-    showNotification('Settings exported successfully');
-  };
+  useEffect(() => {
+    fetchFeedbacks();
+  }, []);
 
-  const handleBackupNow = () => {
-    setSettings({
-      ...settings,
-      system: {
-        ...settings.system,
-        lastBackup: new Date().toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
-      }
-    });
-    showNotification('Backup created successfully');
-  };
-
-  const handleDeleteSystemData = () => {
-    if (window.confirm('⚠️ WARNING: This will delete ALL system data. This action cannot be undone. Are you absolutely sure?')) {
-      localStorage.clear();
-      showNotification('System data cleared. Refreshing...', 'error');
-      setTimeout(() => window.location.reload(), 2000);
-    }
-  };
-
-  const handleSaveChanges = () => {
-    localStorage.setItem('herbiSense_settings', JSON.stringify(settings));
-    showNotification('All settings saved successfully');
-  };
-
-  const handleResetDefaults = () => {
-    if (window.confirm('Reset all settings to default values?')) {
-      localStorage.removeItem('herbiSense_settings');
-      window.location.reload();
-    }
-  };
-
-  // Updated tabs - removed Appearance
-  const tabs = [
-    { id: 'general', label: 'General', icon: GlobeAltIcon },
-    { id: 'notifications', label: 'Notifications', icon: BellIcon },
-    { id: 'security', label: 'Security', icon: ShieldCheckIcon },
-    { id: 'system', label: 'System', icon: Cog6ToothIcon }
-  ];
+  // Stats
+  const totalFeedbacks = feedbacks.length;
+  const newFeedbacks = feedbacks.filter(f => f.status === 'new' || !f.status).length;
+  const readFeedbacks = feedbacks.filter(f => f.status === 'read').length;
+  const repliedFeedbacks = feedbacks.filter(f => f.status === 'replied').length;
 
   return (
     <div className="space-y-6">
@@ -233,14 +191,10 @@ const Settings = () => {
         <div className="fixed top-4 right-4 z-50 animate-slide-down">
           <div className={`flex items-center p-4 rounded-lg shadow-lg ${
             toastType === 'success' ? 'bg-emerald-500' :
-            toastType === 'error' ? 'bg-red-500' :
-            toastType === 'warning' ? 'bg-yellow-500' :
-            'bg-blue-500'
+            toastType === 'error' ? 'bg-red-500' : 'bg-blue-500'
           } text-white`}>
             {toastType === 'success' && <CheckCircleIcon className="h-5 w-5 mr-2" />}
-            {toastType === 'error' && <ExclamationTriangleIcon className="h-5 w-5 mr-2" />}
-            {toastType === 'warning' && <ExclamationTriangleIcon className="h-5 w-5 mr-2" />}
-            {toastType === 'info' && <BellIcon className="h-5 w-5 mr-2" />}
+            {toastType === 'error' && <XCircleIcon className="h-5 w-5 mr-2" />}
             <span className="text-sm font-medium">{toastMessage}</span>
           </div>
         </div>
@@ -248,469 +202,293 @@ const Settings = () => {
 
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">System Settings</h1>
-        <div className="flex items-center space-x-3">
-          <button
-            onClick={handleResetDefaults}
-            className="px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            Reset Defaults
-          </button>
-          <button
-            onClick={handleSaveChanges}
-            className="px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 transition-colors shadow-sm"
-          >
-            Save Changes
-          </button>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">User Feedback</h1>
+          <p className="text-sm text-gray-500 mt-1">Manage and respond to user feedback submissions</p>
+        </div>
+        <button
+          onClick={fetchFeedbacks}
+          className="inline-flex items-center px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 transition-colors"
+        >
+          <ArrowPathIcon className="h-4 w-4 mr-2" />
+          Refresh
+        </button>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Total Feedback</p>
+              <p className="text-2xl font-bold text-gray-900">{totalFeedbacks}</p>
+            </div>
+            <ChatBubbleLeftRightIcon className="h-8 w-8 text-emerald-500" />
+          </div>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">New</p>
+              <p className="text-2xl font-bold text-yellow-600">{newFeedbacks}</p>
+            </div>
+            <StarIcon className="h-8 w-8 text-yellow-500" />
+          </div>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Read</p>
+              <p className="text-2xl font-bold text-blue-600">{readFeedbacks}</p>
+            </div>
+            <EyeIcon className="h-8 w-8 text-blue-500" />
+          </div>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Replied</p>
+              <p className="text-2xl font-bold text-emerald-600">{repliedFeedbacks}</p>
+            </div>
+            <HeartIcon className="h-8 w-8 text-emerald-500" />
+          </div>
         </div>
       </div>
 
-      {/* Settings Container */}
+      {/* Search and Filter */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex-1 relative">
+          <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search by name, email, or message..."
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500"
+          />
+        </div>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="w-40 px-3 py-2 border border-gray-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500"
+        >
+          <option value="all">All Status</option>
+          <option value="new">New</option>
+          <option value="read">Read</option>
+          <option value="replied">Replied</option>
+          <option value="archived">Archived</option>
+        </select>
+      </div>
+
+      {/* Feedback List */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        {/* Tabs */}
-        <div className="border-b border-gray-200 bg-gray-50 px-6">
-          <nav className="flex space-x-8">
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
+        {isLoading ? (
+          <div className="flex justify-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+          </div>
+        ) : filteredFeedbacks.length === 0 ? (
+          <div className="text-center py-12">
+            <ChatBubbleLeftRightIcon className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+            <p className="text-gray-500">No feedback submissions found</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-200">
+            {filteredFeedbacks.map((feedback) => {
+              const statusBadge = getStatusBadge(feedback.status);
               return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`
-                    flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors
-                    ${activeTab === tab.id
-                      ? 'border-emerald-500 text-emerald-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                <div 
+                  key={feedback.id} 
+                  className="p-5 hover:bg-gray-50 transition-colors cursor-pointer"
+                  onClick={() => {
+                    setSelectedFeedback(feedback);
+                    setShowModal(true);
+                    if (feedback.status !== 'read') {
+                      updateFeedbackStatus(feedback.id, 'read');
                     }
-                  `}
+                  }}
                 >
-                  <Icon className={`h-5 w-5 ${activeTab === tab.id ? 'text-emerald-500' : 'text-gray-400'}`} />
-                  <span>{tab.label}</span>
-                </button>
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-400 flex items-center justify-center text-white font-bold">
+                          {getInitials(feedback.name)}
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="font-semibold text-gray-900">{feedback.name}</h3>
+                            <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${statusBadge.bg} ${statusBadge.text}`}>
+                              {statusBadge.label}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3 mt-1">
+                            <div className="flex items-center text-xs text-gray-500">
+                              <EnvelopeIcon className="h-3 w-3 mr-1" />
+                              {feedback.email}
+                            </div>
+                            <div className="flex items-center text-xs text-gray-500">
+                              <CalendarIcon className="h-3 w-3 mr-1" />
+                              {formatDate(feedback.created_at)}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <p className="text-gray-600 text-sm line-clamp-2 ml-13">
+                        {feedback.message}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 ml-4">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedFeedback(feedback);
+                          setShowModal(true);
+                          if (feedback.status !== 'read') {
+                            updateFeedbackStatus(feedback.id, 'read');
+                          }
+                        }}
+                        className="p-2 text-gray-400 hover:text-emerald-600 transition-colors"
+                        title="View Details"
+                      >
+                        <EyeIcon className="h-5 w-5" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteFeedback(feedback.id);
+                        }}
+                        className="p-2 text-gray-400 hover:text-red-600 transition-colors"
+                        title="Delete"
+                      >
+                        <TrashIcon className="h-5 w-5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
               );
             })}
-          </nav>
-        </div>
+          </div>
+        )}
+      </div>
 
-        {/* Tab Content */}
-        <div className="p-6">
-          {/* General Settings */}
-          {activeTab === 'general' && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Language Setting */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <div className="flex items-center mb-3">
-                    <GlobeAltIcon className="h-5 w-5 text-emerald-600 mr-2" />
-                    <h3 className="font-medium text-gray-900">Language</h3>
+      {/* Feedback Detail Modal */}
+      {showModal && selectedFeedback && (
+        <div className="fixed inset-0 z-[9999] overflow-y-auto">
+          <div className="fixed inset-0 bg-black/50" onClick={() => setShowModal(false)} />
+          
+          <div className="relative flex min-h-full items-center justify-center p-4">
+            <div className="relative w-full max-w-2xl transform overflow-hidden rounded-xl bg-white shadow-2xl transition-all">
+              {/* Header */}
+              <div className="bg-gradient-to-r from-emerald-600 to-teal-600 px-6 py-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <ChatBubbleLeftRightIcon className="h-6 w-6 text-white" />
+                    <div>
+                      <h3 className="text-lg font-semibold text-white">Feedback Details</h3>
+                      <p className="text-xs text-emerald-50">View complete feedback information</p>
+                    </div>
                   </div>
-                  <select
-                    value={settings.general.language}
-                    onChange={handleLanguageChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500"
-                  >
-                    <option value="en">English (US)</option>
-                    <option value="es">Español</option>
-                    <option value="fr">Français</option>
-                    <option value="de">Deutsch</option>
-                    <option value="zh">中文</option>
-                  </select>
-                </div>
-
-                {/* Timezone Setting */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <div className="flex items-center mb-3">
-                    <ClockIcon className="h-5 w-5 text-emerald-600 mr-2" />
-                    <h3 className="font-medium text-gray-900">Timezone</h3>
-                  </div>
-                  <select
-                    value={settings.general.timezone}
-                    onChange={handleTimezoneChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500"
-                  >
-                    <option value="UTC-08:00">UTC-08:00 Pacific Time</option>
-                    <option value="UTC-07:00">UTC-07:00 Mountain Time</option>
-                    <option value="UTC-06:00">UTC-06:00 Central Time</option>
-                    <option value="UTC-05:00">UTC-05:00 Eastern Time</option>
-                    <option value="UTC+00:00">UTC+00:00 Greenwich Mean Time</option>
-                    <option value="UTC+01:00">UTC+01:00 Central European Time</option>
-                    <option value="UTC+08:00">UTC+08:00 Singapore Time</option>
-                    <option value="UTC+09:00">UTC+09:00 Japan Time</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Date Format */}
-              <div className="bg-gray-50 rounded-lg p-4">
-                <div className="flex items-center mb-3">
-                  <DocumentTextIcon className="h-5 w-5 text-emerald-600 mr-2" />
-                  <h3 className="font-medium text-gray-900">Date Format</h3>
-                </div>
-                <div className="flex flex-wrap gap-4">
-                  {['MM/DD/YYYY', 'DD/MM/YYYY', 'YYYY-MM-DD'].map((format) => (
-                    <label key={format} className="flex items-center">
-                      <input
-                        type="radio"
-                        name="dateFormat"
-                        checked={settings.general.dateFormat === format}
-                        onChange={() => handleDateFormatChange(format)}
-                        className="h-4 w-4 text-emerald-600 focus:ring-emerald-500"
-                      />
-                      <span className="ml-2 text-sm text-gray-700">{format}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              {/* Time Format */}
-              <div className="bg-gray-50 rounded-lg p-4">
-                <div className="flex items-center mb-3">
-                  <ClockIcon className="h-5 w-5 text-emerald-600 mr-2" />
-                  <h3 className="font-medium text-gray-900">Time Format</h3>
-                </div>
-                <div className="flex gap-4">
-                  {['12h', '24h'].map((format) => (
-                    <label key={format} className="flex items-center">
-                      <input
-                        type="radio"
-                        name="timeFormat"
-                        checked={settings.general.timeFormat === format}
-                        onChange={() => handleTimeFormatChange(format)}
-                        className="h-4 w-4 text-emerald-600 focus:ring-emerald-500"
-                      />
-                      <span className="ml-2 text-sm text-gray-700">
-                        {format === '12h' ? '12-hour (AM/PM)' : '24-hour'}
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Notifications Settings */}
-          {activeTab === 'notifications' && (
-            <div className="space-y-6">
-              <div className="bg-gray-50 rounded-lg p-4">
-                <div className="flex items-center mb-4">
-                  <EnvelopeIcon className="h-5 w-5 text-emerald-600 mr-2" />
-                  <h3 className="font-medium text-gray-900">Email Notifications</h3>
-                </div>
-                <div className="space-y-3">
-                  {[
-                    { key: 'emailAlerts', label: 'Email Alerts', desc: 'Receive important alerts via email' },
-                    { key: 'systemUpdates', label: 'System Updates', desc: 'Get notified about system updates' },
-                    { key: 'securityAlerts', label: 'Security Alerts', desc: 'Critical security notifications' },
-                    { key: 'marketingEmails', label: 'Marketing Emails', desc: 'Product updates and newsletters' }
-                  ].map((item) => (
-                    <label key={item.key} className="flex items-center justify-between p-3 bg-white rounded-lg">
-                      <div>
-                        <span className="text-sm font-medium text-gray-900">{item.label}</span>
-                        <p className="text-xs text-gray-500">{item.desc}</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => toggleNotification(item.key)}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${
-                          settings.notifications[item.key] ? 'bg-emerald-600' : 'bg-gray-300'
-                        }`}
-                      >
-                        <span
-                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                            settings.notifications[item.key] ? 'translate-x-6' : 'translate-x-1'
-                          }`}
-                        />
-                      </button>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div className="bg-gray-50 rounded-lg p-4">
-                <div className="flex items-center mb-4">
-                  <DevicePhoneMobileIcon className="h-5 w-5 text-emerald-600 mr-2" />
-                  <h3 className="font-medium text-gray-900">Push Notifications</h3>
-                </div>
-                <div className="space-y-3">
-                  {[
-                    { key: 'pushNotifications', label: 'Mobile Push', desc: 'Receive push notifications on mobile' },
-                    { key: 'desktopNotifications', label: 'Desktop Notifications', desc: 'Show desktop notifications' }
-                  ].map((item) => (
-                    <label key={item.key} className="flex items-center justify-between p-3 bg-white rounded-lg">
-                      <div>
-                        <span className="text-sm font-medium text-gray-900">{item.label}</span>
-                        <p className="text-xs text-gray-500">{item.desc}</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => toggleNotification(item.key)}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                          settings.notifications[item.key] ? 'bg-emerald-600' : 'bg-gray-300'
-                        }`}
-                      >
-                        <span
-                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                            settings.notifications[item.key] ? 'translate-x-6' : 'translate-x-1'
-                          }`}
-                        />
-                      </button>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex justify-end space-x-3 pt-4">
-                <button
-                  onClick={handleTestNotification}
-                  className="px-4 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50"
-                >
-                  Test Notification
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Security Settings */}
-          {activeTab === 'security' && (
-            <div className="space-y-6">
-              <div className="bg-gray-50 rounded-lg p-4">
-                <div className="flex items-center mb-4">
-                  <LockClosedIcon className="h-5 w-5 text-emerald-600 mr-2" />
-                  <h3 className="font-medium text-gray-900">Authentication</h3>
-                </div>
-                <div className="space-y-3">
                   <button
-                    onClick={handleChangePassword}
-                    className="w-full flex items-center justify-between p-3 bg-white rounded-lg hover:bg-gray-50 transition-colors"
+                    onClick={() => setShowModal(false)}
+                    className="rounded-lg bg-white/10 p-1.5 text-white/80 hover:bg-white/20 hover:text-white"
                   >
-                    <div className="flex items-center">
-                      <LockClosedIcon className="h-5 w-5 text-gray-400 mr-3" />
-                      <span className="text-sm text-gray-900">Change Password</span>
-                    </div>
-                    <span className="text-sm text-emerald-600">Update →</span>
+                    <XCircleIcon className="h-5 w-5" />
                   </button>
+                </div>
+              </div>
 
-                  <div className="flex items-center justify-between p-3 bg-white rounded-lg">
-                    <div className="flex items-center">
-                      <ShieldCheckIcon className="h-5 w-5 text-gray-400 mr-3" />
-                      <div>
-                        <span className="text-sm font-medium text-gray-900">Two-Factor Authentication</span>
-                        <p className="text-xs text-gray-500">Add an extra layer of security</p>
+              {/* Content */}
+              <div className="p-6 space-y-6">
+                {/* User Info */}
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-emerald-500 to-teal-400 flex items-center justify-center text-white text-2xl font-bold">
+                    {getInitials(selectedFeedback.name)}
+                  </div>
+                  <div>
+                    <h4 className="text-xl font-bold text-gray-900">{selectedFeedback.name}</h4>
+                    <div className="flex items-center gap-3 mt-1">
+                      <div className="flex items-center text-sm text-gray-500">
+                        <EnvelopeIcon className="h-4 w-4 mr-1" />
+                        {selectedFeedback.email}
+                      </div>
+                      <div className="flex items-center text-sm text-gray-500">
+                        <CalendarIcon className="h-4 w-4 mr-1" />
+                        {formatDate(selectedFeedback.created_at)}
                       </div>
                     </div>
-                    {settings.security.twoFactorEnabled ? (
+                  </div>
+                </div>
+
+                {/* Status */}
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <p className="text-xs text-gray-500 mb-2">Status</p>
+                  <div className="flex items-center gap-3">
+                    <span className={`inline-flex px-3 py-1 rounded-full text-sm font-medium ${getStatusBadge(selectedFeedback.status).bg} ${getStatusBadge(selectedFeedback.status).text}`}>
+                      {getStatusBadge(selectedFeedback.status).label}
+                    </span>
+                    {selectedFeedback.status === 'new' && (
                       <button
-                        onClick={handleDisable2FA}
-                        className="px-3 py-1 bg-red-100 text-red-700 text-xs font-medium rounded-lg hover:bg-red-200"
+                        onClick={() => updateFeedbackStatus(selectedFeedback.id, 'read')}
+                        className="text-sm text-blue-600 hover:text-blue-700"
                       >
-                        Disable
+                        Mark as Read
                       </button>
-                    ) : (
+                    )}
+                    {selectedFeedback.status === 'read' && (
                       <button
-                        onClick={handleEnable2FA}
-                        className="px-3 py-1 bg-emerald-100 text-emerald-700 text-xs font-medium rounded-lg hover:bg-emerald-200"
+                        onClick={() => updateFeedbackStatus(selectedFeedback.id, 'replied')}
+                        className="text-sm text-emerald-600 hover:text-emerald-700"
                       >
-                        Enable
+                        Mark as Replied
                       </button>
                     )}
                   </div>
                 </div>
-              </div>
 
-              <div className="bg-gray-50 rounded-lg p-4">
-                <div className="flex items-center mb-4">
-                  <UserGroupIcon className="h-5 w-5 text-emerald-600 mr-2" />
-                  <h3 className="font-medium text-gray-900">Session Management</h3>
+                {/* Message */}
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <p className="text-xs text-gray-500 mb-2">Message</p>
+                  <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">
+                    {selectedFeedback.message}
+                  </p>
                 </div>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between p-3 bg-white rounded-lg">
-                    <div>
-                      <span className="text-sm font-medium text-gray-900">Session Timeout</span>
-                      <p className="text-xs text-gray-500">Auto-logout after inactivity</p>
-                    </div>
-                    <select
-                      value={settings.security.sessionTimeout}
-                      onChange={handleSessionTimeoutChange}
-                      className="px-2 py-1 border border-gray-300 rounded text-sm"
-                    >
-                      <option value="15">15 minutes</option>
-                      <option value="30">30 minutes</option>
-                      <option value="60">1 hour</option>
-                      <option value="120">2 hours</option>
-                    </select>
-                  </div>
 
-                  <div className="flex items-center justify-between p-3 bg-white rounded-lg">
-                    <div>
-                      <span className="text-sm font-medium text-gray-900">Active Sessions</span>
-                      <p className="text-xs text-gray-500">You have 2 active sessions</p>
-                    </div>
+                {/* Reply Section */}
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <p className="text-xs text-gray-500 mb-2">Quick Actions</p>
+                  <div className="flex gap-3">
                     <button
-                      onClick={handleRevokeSessions}
-                      className="text-sm text-red-600 hover:text-red-700"
+                      onClick={() => {
+                        window.location.href = `mailto:${selectedFeedback.email}?subject=Re: Your HerbiSense Feedback`;
+                      }}
+                      className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
                     >
-                      Revoke All
+                      Reply via Email
+                    </button>
+                    <button
+                      onClick={() => deleteFeedback(selectedFeedback.id)}
+                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                    >
+                      Delete
                     </button>
                   </div>
-
-                  <label className="flex items-center justify-between p-3 bg-white rounded-lg">
-                    <div>
-                      <span className="text-sm font-medium text-gray-900">Login Alerts</span>
-                      <p className="text-xs text-gray-500">Email on new device login</p>
-                    </div>
-                    <button
-                      onClick={() => toggleNotification('loginAlerts')}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        settings.security.loginAlerts ? 'bg-emerald-600' : 'bg-gray-300'
-                      }`}
-                    >
-                      <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                          settings.security.loginAlerts ? 'translate-x-6' : 'translate-x-1'
-                        }`}
-                      />
-                    </button>
-                  </label>
                 </div>
               </div>
 
-              <div className="bg-gray-50 rounded-lg p-4">
-                <div className="flex items-center mb-4">
-                  <DocumentTextIcon className="h-5 w-5 text-emerald-600 mr-2" />
-                  <h3 className="font-medium text-gray-900">Audit Logs</h3>
-                </div>
+              {/* Footer */}
+              <div className="bg-gray-50 px-6 py-4 border-t border-gray-200 flex justify-end">
                 <button
-                  onClick={handleViewLogs}
-                  className="w-full flex items-center justify-between p-3 bg-white rounded-lg hover:bg-gray-50 transition-colors"
+                  onClick={() => setShowModal(false)}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
                 >
-                  <span className="text-sm text-gray-900">View System Audit Logs</span>
-                  <span className="text-sm text-emerald-600">View →</span>
+                  Close
                 </button>
               </div>
             </div>
-          )}
-
-          {/* System Settings */}
-          {activeTab === 'system' && (
-            <div className="space-y-6">
-              <div className="bg-gray-50 rounded-lg p-4">
-                <div className="flex items-center mb-4">
-                  <ArrowPathIcon className="h-5 w-5 text-emerald-600 mr-2" />
-                  <h3 className="font-medium text-gray-900">System Maintenance</h3>
-                </div>
-                <div className="space-y-3">
-                  <button
-                    onClick={handleClearCache}
-                    className="w-full flex items-center justify-between p-3 bg-white rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    <span className="text-sm text-gray-900">Clear System Cache</span>
-                    <span className="text-xs text-gray-500">{settings.system.cacheSize}</span>
-                  </button>
-
-                  <button
-                    onClick={handleExportData}
-                    className="w-full flex items-center justify-between p-3 bg-white rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    <span className="text-sm text-gray-900">Export Settings</span>
-                    <CloudArrowUpIcon className="h-4 w-4 text-gray-400" />
-                  </button>
-
-                  <label className="flex items-center justify-between p-3 bg-white rounded-lg">
-                    <div>
-                      <span className="text-sm font-medium text-gray-900">Auto-Save</span>
-                      <p className="text-xs text-gray-500">Automatically save changes</p>
-                    </div>
-                    <button
-                      onClick={() => setSettings({
-                        ...settings,
-                        system: { ...settings.system, autoSave: !settings.system.autoSave }
-                      })}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        settings.system.autoSave ? 'bg-emerald-600' : 'bg-gray-300'
-                      }`}
-                    >
-                      <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                          settings.system.autoSave ? 'translate-x-6' : 'translate-x-1'
-                        }`}
-                      />
-                    </button>
-                  </label>
-                </div>
-              </div>
-
-              <div className="bg-gray-50 rounded-lg p-4">
-                <div className="flex items-center mb-4">
-                  <CloudArrowUpIcon className="h-5 w-5 text-emerald-600 mr-2" />
-                  <h3 className="font-medium text-gray-900">Backup</h3>
-                </div>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between p-3 bg-white rounded-lg">
-                    <div>
-                      <span className="text-sm font-medium text-gray-900">Last Backup</span>
-                      <p className="text-xs text-gray-500">{settings.system.lastBackup}</p>
-                    </div>
-                    <button
-                      onClick={handleBackupNow}
-                      className="px-3 py-1 bg-emerald-100 text-emerald-700 text-xs font-medium rounded-lg hover:bg-emerald-200"
-                    >
-                      Backup Now
-                    </button>
-                  </div>
-
-                  <label className="flex items-center justify-between p-3 bg-white rounded-lg">
-                    <div>
-                      <span className="text-sm font-medium text-gray-900">Telemetry</span>
-                      <p className="text-xs text-gray-500">Send anonymous usage data</p>
-                    </div>
-                    <button
-                      onClick={() => setSettings({
-                        ...settings,
-                        system: { ...settings.system, telemetry: !settings.system.telemetry }
-                      })}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        settings.system.telemetry ? 'bg-emerald-600' : 'bg-gray-300'
-                      }`}
-                    >
-                      <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                          settings.system.telemetry ? 'translate-x-6' : 'translate-x-1'
-                        }`}
-                      />
-                    </button>
-                  </label>
-                </div>
-              </div>
-
-              <div className="bg-amber-50 rounded-lg p-4 border border-amber-200">
-                <div className="flex items-start">
-                  <ExclamationTriangleIcon className="h-5 w-5 text-amber-600 mr-3 mt-0.5" />
-                  <div>
-                    <h4 className="font-medium text-amber-800">Danger Zone</h4>
-                    <p className="text-sm text-amber-700 mt-1">
-                      Actions here are irreversible. Please proceed with caution.
-                    </p>
-                    <button
-                      onClick={handleDeleteSystemData}
-                      className="mt-3 px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700"
-                    >
-                      Delete System Data
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+          </div>
         </div>
-      </div>
-
-      {/* Footer */}
-      <div className="flex items-center justify-between text-xs text-gray-500">
-        <span>© 2024 HerbiSense. All rights reserved.</span>
-        <span>v2.4.0</span>
-      </div>
+      )}
     </div>
   );
 };
 
-export default Settings;
+export default AdminFeedback;

@@ -1,409 +1,355 @@
 // src/components/recommendations/RecommendationForm.jsx
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { 
-  User, Calendar, MapPin, Droplets, 
-  AlertCircle, Heart, ChevronRight, Loader2 
+  ChevronRight, Loader2,
+  Leaf, Star, CheckCircle, Flame, Shield, Zap, Pill, Flower2,
+  Activity, Bug, Thermometer, Heart, AlertCircle, BookOpen
 } from 'lucide-react'
-import SkinConditionSelector from './SkinConditionSelector'
 import Button from '../common/Button'
+import HerbCard from '../herbs/HerbCard'
 import { useTranslation } from '../../hooks/useTranslation'
+import { useLanguage } from '../../contexts/LanguageContext'
+import { herbApi, getApiBaseUrl } from '../../services/herbApi'
 
 const RecommendationForm = ({ onSubmit, isLoading }) => {
+  const navigate = useNavigate()
+  const { language, getApiLanguageCode } = useLanguage()
   const [step, setStep] = useState(1)
-  const [selectedConditions, setSelectedConditions] = useState([])
-  const [severity, setSeverity] = useState({})
-  const [formData, setFormData] = useState({
-    age: '',
-    skinType: '',
-    location: '',
-    allergies: '',
-    previousTreatments: '',
-    goals: []
-  })
+  const [selectedCondition, setSelectedCondition] = useState(null)
+  const [conditions, setConditions] = useState([])
+  const [recommendations, setRecommendations] = useState([])
+  const [translatedConditions, setTranslatedConditions] = useState({})
+  const [isLoadingConditions, setIsLoadingConditions] = useState(false)
+  const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(false)
+  const [isLoadingTranslations, setIsLoadingTranslations] = useState(false)
+  const [viewMode, setViewMode] = useState('grid')
   const { t } = useTranslation()
 
-  const skinTypes = [
-    { id: 'normal', label: t('rec.form.skin_type.normal'), description: t('rec.form.skin_type.normal_desc') },
-    { id: 'dry', label: t('rec.form.skin_type.dry'), description: t('rec.form.skin_type.dry_desc') },
-    { id: 'oily', label: t('rec.form.skin_type.oily'), description: t('rec.form.skin_type.oily_desc') },
-    { id: 'combination', label: t('rec.form.skin_type.combination'), description: t('rec.form.skin_type.combination_desc') },
-    { id: 'sensitive', label: t('rec.form.skin_type.sensitive'), description: t('rec.form.skin_type.sensitive_desc') },
-  ]
-
-  const goals = [
-    { id: 'healing', label: t('rec.form.goals.healing'), icon: Heart },
-    { id: 'moisture', label: t('rec.form.goals.moisture'), icon: Droplets },
-    { id: 'prevention', label: t('rec.form.goals.prevention'), icon: AlertCircle },
-    { id: 'beauty', label: t('rec.form.goals.beauty'), icon: '✨' },
-  ]
-
-  const handleStepChange = (newStep) => {
-    if (newStep >= 1 && newStep <= 3) {
-      setStep(newStep)
+  // Fetch real conditions from API
+  useEffect(() => {
+    const fetchConditions = async () => {
+      setIsLoadingConditions(true)
+      try {
+        const conditionsList = await herbApi.getConditions()
+        setConditions(conditionsList)
+        console.log('✅ Loaded conditions:', conditionsList)
+      } catch (error) {
+        console.error('Failed to fetch conditions:', error)
+      } finally {
+        setIsLoadingConditions(false)
+      }
     }
-  }
+    fetchConditions()
+  }, [])
 
-  const handleConditionSelection = (conditions, severityLevels) => {
-    setSelectedConditions(conditions)
-    setSeverity(severityLevels)
-  }
-
-  const handleInputChange = (field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }))
-  }
-
-  const handleGoalToggle = (goalId) => {
-    setFormData(prev => ({
-      ...prev,
-      goals: prev.goals.includes(goalId)
-        ? prev.goals.filter(id => id !== goalId)
-        : [...prev.goals, goalId]
-    }))
-  }
-
-  const handleSubmit = () => {
-    const recommendationData = {
-      conditions: selectedConditions.map(conditionId => ({
-        condition: conditionId,
-        severity: severity[conditionId] || 1
-      })),
-      profile: formData,
-      timestamp: new Date().toISOString()
+  // Fetch condition translations
+  const fetchConditionTranslations = async () => {
+    if (language === 'EN' || conditions.length === 0) return;
+    
+    setIsLoadingTranslations(true)
+    const apiLangCode = getApiLanguageCode()
+    const translations = {}
+    
+    for (const condition of conditions) {
+      try {
+        const token = localStorage.getItem('token')
+        const response = await fetch(`${getApiBaseUrl()}/condition-translations/${condition.id}/${apiLangCode}`, {
+          headers: {
+            'Authorization': token ? `Bearer ${token}` : {},
+            'Content-Type': 'application/json'
+          }
+        })
+        
+        if (response.ok) {
+          const data = await response.json()
+          if (data.success && data.data) {
+            translations[condition.id] = data.data
+          }
+        }
+      } catch (error) {
+        console.log(`No translation found for condition ${condition.id}`)
+      }
     }
     
-    onSubmit(recommendationData)
+    setTranslatedConditions(translations)
+    console.log(`✅ Loaded ${Object.keys(translations).length} condition translations for ${language}`)
+    setIsLoadingTranslations(false)
   }
 
-  const calculateProgress = () => {
-    switch(step) {
-      case 1: return 33
-      case 2: return 66
-      case 3: return 100
-      default: return 0
+  // Fetch translations when language or conditions change
+  useEffect(() => {
+    if (conditions.length > 0) {
+      fetchConditionTranslations()
+    }
+  }, [language, conditions])
+
+  // Get translated condition name
+  const getTranslatedConditionName = (condition) => {
+    if (language === 'EN') return condition.name
+    const translation = translatedConditions[condition.id]
+    return translation?.translated_name || condition.name
+  }
+
+  // Get translated condition description
+  const getTranslatedConditionDescription = (condition) => {
+    if (language === 'EN') return condition.description
+    const translation = translatedConditions[condition.id]
+    return translation?.translated_description || condition.description
+  }
+
+  // Get condition icon based on name
+  const getConditionIcon = (conditionName) => {
+    const name = conditionName?.toLowerCase() || ''
+    if (name.includes('acne')) return Bug
+    if (name.includes('inflammation') || name.includes('inflammatory')) return Flame
+    if (name.includes('rash')) return Activity
+    if (name.includes('skin')) return Shield
+    if (name.includes('burn')) return Zap
+    if (name.includes('digest')) return Pill
+    return Flower2
+  }
+
+  // Fetch herb recommendations based on selected condition
+  const fetchRecommendations = async () => {
+    if (!selectedCondition) return
+    
+    setIsLoadingRecommendations(true)
+    try {
+      const allHerbs = await herbApi.getPublishedHerbs(1, 100)
+      const recommendedHerbs = allHerbs.filter(herb => 
+        herb.conditionIds && herb.conditionIds.includes(selectedCondition.id)
+      )
+      
+      console.log(`Found ${recommendedHerbs.length} herbs for condition ${selectedCondition.name}`)
+      setRecommendations(recommendedHerbs)
+    } catch (error) {
+      console.error('Failed to fetch recommendations:', error)
+    } finally {
+      setIsLoadingRecommendations(false)
     }
   }
 
-  const isStep1Complete = selectedConditions.length > 0
-  const isStep2Complete = formData.age && formData.skinType && formData.goals.length > 0
-  const canSubmit = isStep1Complete && isStep2Complete
+  const handleConditionSelect = (condition) => {
+    setSelectedCondition(condition)
+  }
+
+  const handleGetRecommendations = async () => {
+    if (!selectedCondition) return
+    await fetchRecommendations()
+    setStep(2)
+  }
+
+  const resetForm = () => {
+    setSelectedCondition(null)
+    setRecommendations([])
+    setStep(1)
+  }
+
+  const handleViewHerb = (herb) => {
+    navigate(`/herbs/${herb.id}`)
+  }
 
   return (
-    <div className="max-w-4xl mx-auto">
-      {/* Progress Bar */}
-      <div className="mb-10">
-        <div className="flex items-center justify-between mb-4">
-          <div className="text-sm font-medium text-gray-700">
-            {t('rec.form.step', { current: step, total: 3 })}
-          </div>
-          <div className="text-sm text-emerald-600 font-medium">
-            {t('rec.form.complete', { progress: calculateProgress() })}
+    <div className="max-w-6xl mx-auto relative z-10">
+      {/* Language Indicator */}
+      {language !== 'EN' && (
+        <div className="mb-4 flex justify-end">
+          <div className="inline-flex items-center px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+            <BookOpen className="h-3 w-3 mr-1" />
+            Viewing in: {language === 'AM' ? 'አማርኛ' : 'Oromiffa'}
           </div>
         </div>
-        
-        <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-          <div 
-            className="h-full bg-gradient-to-r from-emerald-400 to-emerald-600 transition-all duration-500"
-            style={{ width: `${calculateProgress()}%` }}
-          ></div>
-        </div>
-        
-        <div className="flex justify-between mt-2">
-          <div className={`text-sm ${step >= 1 ? 'text-emerald-600 font-medium' : 'text-gray-500'}`}>
-            {t('rec.form.step1')}
-          </div>
-          <div className={`text-sm ${step >= 2 ? 'text-emerald-600 font-medium' : 'text-gray-500'}`}>
-            {t('rec.form.step2')}
-          </div>
-          <div className={`text-sm ${step >= 3 ? 'text-emerald-600 font-medium' : 'text-gray-500'}`}>
-            {t('rec.form.step3')}
-          </div>
-        </div>
-      </div>
+      )}
 
-      {/* Form Content */}
-      <div className="bg-white rounded-3xl border-2 border-emerald-100 shadow-xl p-8">
-        {step === 1 && (
-          <div className="space-y-8">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                {t('rec.form.step1.title')}
-              </h2>
-              <p className="text-gray-600">
-                {t('rec.form.step1.subtitle')}
+      {/* Step 1: Select Condition */}
+      {step === 1 && (
+        <div className="bg-white rounded-3xl border-2 border-emerald-100 shadow-xl p-6 sm:p-8 relative z-10">
+          <div className="text-center mb-6 sm:mb-8">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto bg-gradient-to-r from-emerald-100 to-emerald-50 rounded-full flex items-center justify-center mb-4">
+              <Heart className="h-8 w-8 sm:h-10 sm:w-10 text-emerald-600" />
+            </div>
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
+              Find Herbal Remedies
+            </h2>
+            <p className="text-sm sm:text-base text-gray-600">
+              Select a condition to get personalized herb recommendations
+            </p>
+            {language !== 'EN' && (
+              <p className="text-xs text-purple-600 mt-2">
+                Condition names are shown in {language === 'AM' ? 'Amharic' : 'Oromo'} where available
               </p>
-            </div>
-            
-            <SkinConditionSelector onSelectionChange={handleConditionSelection} />
-            
-            <div className="pt-8 border-t border-gray-100">
-              <Button
-                onClick={() => handleStepChange(2)}
-                disabled={!isStep1Complete}
-                className="w-full group"
-                size="lg"
-              >
-                {t('rec.form.step1.continue')}
-                <ChevronRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-              </Button>
-              
-              {!isStep1Complete && (
-                <p className="text-sm text-red-500 text-center mt-3">
-                  {t('rec.form.step1.error')}
-                </p>
-              )}
-            </div>
+            )}
           </div>
-        )}
 
-        {step === 2 && (
-          <div className="space-y-8">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                {t('rec.form.step2.title')}
-              </h2>
-              <p className="text-gray-600">
-                {t('rec.form.step2.subtitle')}
-              </p>
+          {/* Conditions Grid with Translations - Responsive */}
+          {isLoadingConditions || isLoadingTranslations ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
             </div>
-
-            {/* Basic Info */}
-            <div className="grid md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <User className="inline h-4 w-4 mr-2 text-emerald-500" />
-                  {t('rec.form.age.label')}
-                </label>
-                <select
-                  value={formData.age}
-                  onChange={(e) => handleInputChange('age', e.target.value)}
-                  className="w-full px-4 py-3 bg-white border-2 border-emerald-200 rounded-xl focus:outline-none focus:border-emerald-500"
-                >
-                  <option value="">{t('rec.form.age.placeholder')}</option>
-                  <option value="teen">{t('rec.form.age.teen')}</option>
-                  <option value="young-adult">{t('rec.form.age.young_adult')}</option>
-                  <option value="adult">{t('rec.form.age.adult')}</option>
-                  <option value="senior">{t('rec.form.age.senior')}</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <MapPin className="inline h-4 w-4 mr-2 text-emerald-500" />
-                  {t('rec.form.location.label')}
-                </label>
-                <input
-                  type="text"
-                  value={formData.location}
-                  onChange={(e) => handleInputChange('location', e.target.value)}
-                  placeholder={t('rec.form.location.placeholder')}
-                  className="w-full px-4 py-3 bg-white border-2 border-emerald-200 rounded-xl focus:outline-none focus:border-emerald-500"
-                />
-              </div>
-            </div>
-
-            {/* Skin Type */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-4">
-                {t('rec.form.skin_type.label')}
-              </label>
-              <div className="grid md:grid-cols-3 lg:grid-cols-5 gap-3">
-                {skinTypes.map((type) => (
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
+              {conditions.map((condition) => {
+                const Icon = getConditionIcon(condition.name)
+                const isSelected = selectedCondition?.id === condition.id
+                const translatedName = getTranslatedConditionName(condition)
+                const translatedDescription = getTranslatedConditionDescription(condition)
+                
+                return (
                   <button
-                    key={type.id}
-                    onClick={() => handleInputChange('skinType', type.id)}
-                    className={`p-4 rounded-xl border-2 text-left transition-all ${
-                      formData.skinType === type.id
-                        ? 'border-emerald-300 bg-emerald-50'
-                        : 'border-gray-200 hover:border-emerald-200'
+                    key={condition.id}
+                    onClick={() => handleConditionSelect(condition)}
+                    className={`p-3 sm:p-4 rounded-xl border-2 text-left transition-all ${
+                      isSelected
+                        ? 'border-emerald-400 bg-emerald-50 shadow-md'
+                        : 'border-gray-200 hover:border-emerald-200 hover:bg-gray-50'
                     }`}
                   >
-                    <div className="font-medium text-gray-900 mb-1">{type.label}</div>
-                    <div className="text-xs text-gray-600">{type.description}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Goals */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-4">
-                {t('rec.form.goals.label')}
-              </label>
-              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-3">
-                {goals.map((goal) => {
-                  const isSelected = formData.goals.includes(goal.id)
-                  const IconComponent = goal.icon
-                  
-                  return (
-                    <button
-                      key={goal.id}
-                      onClick={() => handleGoalToggle(goal.id)}
-                      className={`p-4 rounded-xl border-2 flex flex-col items-center justify-center transition-all ${
-                        isSelected
-                          ? 'border-emerald-300 bg-emerald-50'
-                          : 'border-gray-200 hover:border-emerald-200'
-                      }`}
-                    >
-                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center mb-3 ${
-                        isSelected ? 'bg-emerald-100 text-emerald-600' : 'bg-gray-100 text-gray-600'
+                    <div className="flex items-start gap-2 sm:gap-3">
+                      <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                        isSelected ? 'bg-emerald-500 text-white' : 'bg-gray-100 text-gray-600'
                       }`}>
-                        {typeof goal.icon === 'string' ? (
-                          <span className="text-xl">{goal.icon}</span>
-                        ) : (
-                          <IconComponent className="h-6 w-6" />
+                        <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className={`text-sm sm:text-base font-semibold truncate ${isSelected ? 'text-emerald-700' : 'text-gray-900'}`}>
+                          {translatedName}
+                        </h3>
+                        {translatedDescription && (
+                          <p className="text-xs sm:text-sm text-gray-500 mt-1 line-clamp-2">
+                            {translatedDescription}
+                          </p>
+                        )}
+                        {language !== 'EN' && translatedName !== condition.name && (
+                          <p className="text-xs text-gray-400 mt-1 truncate">
+                            Original: {condition.name}
+                          </p>
                         )}
                       </div>
-                      <div className="font-medium text-gray-900">{goal.label}</div>
-                    </button>
-                  )
-                })}
-              </div>
+                      {isSelected && (
+                        <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-500 flex-shrink-0" />
+                      )}
+                    </div>
+                  </button>
+                )
+              })}
             </div>
+          )}
 
-            {/* Additional Info */}
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <AlertCircle className="inline h-4 w-4 mr-2 text-amber-500" />
-                  {t('rec.form.allergies.label')}
-                </label>
-                <textarea
-                  value={formData.allergies}
-                  onChange={(e) => handleInputChange('allergies', e.target.value)}
-                  placeholder={t('rec.form.allergies.placeholder')}
-                  rows="2"
-                  className="w-full px-4 py-3 bg-white border-2 border-emerald-200 rounded-xl focus:outline-none focus:border-emerald-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <Calendar className="inline h-4 w-4 mr-2 text-blue-500" />
-                  {t('rec.form.previous.label')}
-                </label>
-                <textarea
-                  value={formData.previousTreatments}
-                  onChange={(e) => handleInputChange('previousTreatments', e.target.value)}
-                  placeholder={t('rec.form.previous.placeholder')}
-                  rows="2"
-                  className="w-full px-4 py-3 bg-white border-2 border-emerald-200 rounded-xl focus:outline-none focus:border-emerald-500"
-                />
-              </div>
+          {conditions.length === 0 && !isLoadingConditions && (
+            <div className="text-center py-12 bg-gray-50 rounded-xl">
+              <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+              <p className="text-gray-500">No conditions available</p>
             </div>
+          )}
 
-            {/* Navigation */}
-            <div className="pt-8 border-t border-gray-100 flex justify-between">
-              <Button
-                onClick={() => handleStepChange(1)}
-                variant="outline"
-              >
-                {t('rec.form.back')}
-              </Button>
-              
-              <Button
-                onClick={() => handleStepChange(3)}
-                disabled={!isStep2Complete}
-                className="group"
-              >
-                {t('rec.form.next')}
-                <ChevronRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {step === 3 && (
-          <div className="space-y-8 text-center">
-            <div className="w-24 h-24 mx-auto bg-gradient-to-r from-emerald-100 to-emerald-50 rounded-full flex items-center justify-center">
-              <Heart className="h-12 w-12 text-emerald-600" />
-            </div>
+          {/* Get Recommendation Button */}
+          <div className="pt-4 sm:pt-6 border-t border-gray-100">
+            <Button
+              onClick={handleGetRecommendations}
+              disabled={!selectedCondition}
+              className="w-full group"
+              size="lg"
+            >
+              Get Recommendation
+              <ChevronRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5 group-hover:translate-x-1 transition-transform" />
+            </Button>
             
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">
-                {t('rec.form.step3.title')}
-              </h2>
-              <p className="text-gray-600 max-w-2xl mx-auto">
-                {t('rec.form.step3.subtitle')}
+            {!selectedCondition && (
+              <p className="text-xs sm:text-sm text-amber-600 text-center mt-3">
+                Please select a condition first
               </p>
-            </div>
+            )}
+          </div>
+        </div>
+      )}
 
-            {/* Summary */}
-            <div className="bg-gradient-to-r from-emerald-50 to-white rounded-2xl border border-emerald-100 p-6">
-              <h3 className="font-bold text-gray-900 mb-4">{t('rec.form.step3.summary')}</h3>
-              
-              <div className="grid md:grid-cols-2 gap-6 text-left">
-                <div>
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">{t('rec.form.step3.skin_conditions')}</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedConditions.slice(0, 3).map(conditionId => {
-                      const condition = skinTypes.find(c => c.id === conditionId) || { label: conditionId }
-                      return (
-                        <span key={conditionId} className="px-3 py-1 bg-emerald-100 text-emerald-700 text-sm rounded-full">
-                          {condition.label}
-                        </span>
-                      )
-                    })}
-                    {selectedConditions.length > 3 && (
-                      <span className="px-3 py-1 bg-gray-100 text-gray-600 text-sm rounded-full">
-                        +{selectedConditions.length - 3} more
-                      </span>
-                    )}
-                  </div>
+      {/* Step 2: Show Recommendations using HerbCard */}
+      {step === 2 && (
+        <div className="bg-white rounded-3xl border-2 border-emerald-100 shadow-xl overflow-hidden relative z-10">
+          {/* Header - Responsive */}
+          <div className="bg-gradient-to-r from-emerald-600 to-teal-600 px-4 sm:px-6 py-4 sm:py-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg sm:text-xl font-bold text-white">Recommended Herbs</h2>
+                <p className="text-emerald-100 text-xs sm:text-sm mt-1">
+                  For: {selectedCondition ? getTranslatedConditionName(selectedCondition) : ''}
+                </p>
+                <p className="text-emerald-100 text-xs mt-1">
+                  Found {recommendations.length} herb{recommendations.length !== 1 ? 's' : ''}
+                </p>
+                {language !== 'EN' && (
+                  <p className="text-emerald-100 text-xs mt-1 hidden sm:block">
+                    Herb names and details shown in {language === 'AM' ? 'Amharic' : 'Oromo'} where available
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-2 sm:gap-3">
+                {/* View Toggle */}
+                <div className="flex bg-white/20 rounded-lg p-1">
+                  <button
+                    onClick={() => setViewMode('grid')}
+                    className={`px-2 sm:px-3 py-1 rounded-md text-xs sm:text-sm transition-all ${
+                      viewMode === 'grid' 
+                        ? 'bg-white text-emerald-700' 
+                        : 'text-white hover:bg-white/20'
+                    }`}
+                  >
+                    Grid
+                  </button>
+                  <button
+                    onClick={() => setViewMode('list')}
+                    className={`px-2 sm:px-3 py-1 rounded-md text-xs sm:text-sm transition-all ${
+                      viewMode === 'list' 
+                        ? 'bg-white text-emerald-700' 
+                        : 'text-white hover:bg-white/20'
+                    }`}
+                  >
+                    List
+                  </button>
                 </div>
-                
-                <div>
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">{t('rec.form.step3.skin_type')}</h4>
-                  <div className="px-3 py-1 bg-emerald-100 text-emerald-700 text-sm rounded-full inline-block">
-                    {skinTypes.find(t => t.id === formData.skinType)?.label || t('rec.form.step3.not_specified')}
-                  </div>
-                </div>
+                <button
+                  onClick={resetForm}
+                  className="px-3 sm:px-4 py-1.5 sm:py-2 bg-white/20 text-white rounded-lg hover:bg-white/30 transition-colors text-xs sm:text-sm"
+                >
+                  Start Over
+                </button>
               </div>
             </div>
-
-            {/* Action Buttons */}
-            <div className="pt-8 border-t border-gray-100">
-              {isLoading ? (
-                <div className="flex items-center justify-center">
-                  <Loader2 className="h-6 w-6 animate-spin text-emerald-600 mr-3" />
-                  <span className="text-gray-600">{t('rec.form.step3.loading')}</span>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <Button
-                    onClick={handleSubmit}
-                    disabled={!canSubmit}
-                    variant="primary"
-                    size="lg"
-                    className="w-full group"
-                  >
-                    {t('rec.form.step3.generate')}
-                    <ChevronRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-                  </Button>
-                  
-                  <Button
-                    onClick={() => handleStepChange(1)}
-                    variant="ghost"
-                    className="w-full"
-                  >
-                    {t('rec.form.step3.start_over')}
-                  </Button>
-                </div>
-              )}
-            </div>
           </div>
-        )}
-      </div>
 
-      {/* Privacy Note */}
-      <div className="mt-6 text-center">
-        <p className="text-sm text-gray-500">
-          <AlertCircle className="inline h-4 w-4 mr-2" />
-          {t('rec.form.privacy')}
-        </p>
-      </div>
+          {/* Recommendations List using HerbCard - Responsive */}
+          <div className="p-4 sm:p-6">
+            {isLoadingRecommendations ? (
+              <div className="flex justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+              </div>
+            ) : recommendations.length === 0 ? (
+              <div className="text-center py-12">
+                <Leaf className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-500">No herbs found for this condition</p>
+                <button
+                  onClick={resetForm}
+                  className="mt-4 text-emerald-600 hover:text-emerald-700 font-medium text-sm sm:text-base"
+                >
+                  Try another condition
+                </button>
+              </div>
+            ) : (
+              <div className={`grid ${viewMode === 'grid' ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'} gap-4 sm:gap-6`}>
+                {recommendations.map((herb) => (
+                  <HerbCard 
+                    key={herb.id} 
+                    herb={herb} 
+                    viewMode={viewMode}
+                    onView={handleViewHerb}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

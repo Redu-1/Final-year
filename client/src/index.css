@@ -1,2 +1,14 @@
 @import "tailwindcss";
 
+/* Add Poppins font import at the top of your CSS file */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
+
+/* Apply Poppins font to the description or globally */
+.font-poppins {
+  font-family: 'Poppins', sans-serif;
+}
+
+/* Or apply globally to all text */
+body {
+  font-family: 'Poppins', sans-serif;
+}

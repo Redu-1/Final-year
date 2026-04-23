@@ -1,343 +1,707 @@
 // src/components/herbs/HerbDetail.jsx
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { 
-  Bookmark, Leaf, ChevronLeft, Share2, Star, Clock, 
-  AlertCircle, Calendar, BookOpen, Zap, Droplets, 
-  Flame, Shield, Heart, ExternalLink
+  Leaf, ChevronLeft, Calendar, 
+  AlertCircle, Clock, Droplets, 
+  Flame, Shield, Zap, CheckCircle,
+  FlaskConical, AlertTriangle, Eye,
+  BookOpen, Layers, Activity, Bug, Pill, Flower2,
+  Star, Send, User, ThumbsUp, MessageCircle,
+  ChevronDown, ChevronUp
 } from 'lucide-react'
-import Button from '../common/Button'
-import Modal from '../common/Modal'
 import { useTranslation } from '../../hooks/useTranslation'
+import { getApiBaseUrl } from '../../services/herbApi'
+import { useAuth } from '../../contexts/AuthContext'
 
 const HerbDetail = ({ herb }) => {
-  const [isBookmarked, setIsBookmarked] = useState(herb.isBookmarked || false)
   const [activeTab, setActiveTab] = useState('description')
-  const [showPreparationModal, setShowPreparationModal] = useState(false)
-  const [selectedPreparation, setSelectedPreparation] = useState(null)
+  const [openSections, setOpenSections] = useState({
+    description: true,
+    preparation: false,
+    safety: false,
+    source: false,
+    reviews: false
+  })
+  const navigate = useNavigate()
   const { t } = useTranslation()
+  const { user, token } = useAuth()
+  
+  // Rating states
+  const [ratingValue, setRatingValue] = useState(0)
+  const [hoverRating, setHoverRating] = useState(0)
+  const [comment, setComment] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [ratings, setRatings] = useState([])
+  const [averageRating, setAverageRating] = useState(0)
+  const [totalRatings, setTotalRatings] = useState(0)
+  const [userRating, setUserRating] = useState(null)
+  const [isLoadingRatings, setIsLoadingRatings] = useState(false)
+
+  const API_BASE_URL = getApiBaseUrl()
+
+  // Use real herb data
+  const herbData = {
+    id: herb.id,
+    name: herb.name || 'Unknown Herb',
+    scientificName: herb.scientificName || herb.scientific_name || '',
+    description: herb.description || 'No description available',
+    preparation: herb.preparation || 'No preparation information available',
+    safetyWarning: herb.safetyWarning || herb.safety_warning || 'No safety information available',
+    source: herb.source || '',
+    views: herb.views || 0,
+    createdAt: herb.createdAt || herb.created_at,
+    updatedAt: herb.updatedAt || herb.updated_at,
+    conditionIds: herb.conditionIds || [],
+    conditionNames: herb.conditionNames || [],
+    averageRating: herb.averageRating || 0,
+    ratingCount: herb.ratingCount || 0
+  };
+
+  // Parse safety warning into bullet points
+  const safetyPoints = herbData.safetyWarning.split('. ').filter(point => point.trim().length > 0);
+
+  const handleGoBack = () => {
+    navigate(-1);
+  };
+
+  // Toggle section on mobile
+  const toggleSection = (section) => {
+    setOpenSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  };
+
+  // Get condition icon based on name
+  const getConditionIcon = (conditionName) => {
+    const name = conditionName?.toLowerCase() || '';
+    if (name.includes('acne')) return Bug;
+    if (name.includes('inflammation') || name.includes('inflammatory')) return Flame;
+    if (name.includes('rash')) return Activity;
+    if (name.includes('skin')) return Shield;
+    if (name.includes('chebt')) return Zap;
+    if (name.includes('hb')) return Pill;
+    return Flower2;
+  };
+
+  // Helper function to get auth headers
+  const getAuthHeaders = () => {
+    const authToken = token || localStorage.getItem('herbisense_token') || localStorage.getItem('token');
+    const headers = { 'Content-Type': 'application/json' };
+    if (authToken) {
+      headers['Authorization'] = `Bearer ${authToken.replace(/^["']|["']$/g, '')}`;
+    }
+    return headers;
+  };
+
+  // Fetch ratings for this herb
+  const fetchRatings = async () => {
+    if (!herbData.id) return;
+    setIsLoadingRatings(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/ratings/${herbData.id}`, {
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          const ratingsData = data.data || [];
+          setRatings(ratingsData);
+          const total = ratingsData.reduce((sum, r) => sum + parseFloat(r.rating_value), 0);
+          const avg = ratingsData.length > 0 ? total / ratingsData.length : 0;
+          setAverageRating(avg);
+          setTotalRatings(ratingsData.length);
+          if (user && user.id) {
+            const userRatingFound = ratingsData.find(r => r.user_id === user.id);
+            if (userRatingFound) {
+              setUserRating(userRatingFound);
+              setRatingValue(parseFloat(userRatingFound.rating_value));
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch ratings:', error);
+    } finally {
+      setIsLoadingRatings(false);
+    }
+  };
+
+  // Submit rating
+  const submitRating = async () => {
+    if (!user) {
+      alert('Please login to rate this herb');
+      return;
+    }
+    if (ratingValue === 0) {
+      alert('Please select a rating');
+      return;
+    }
+    setIsSubmitting(true);
+    const requestBody = {
+      herbId: herbData.id,
+      ratingValue: ratingValue,
+      comment: comment.trim() || null
+    };
+    try {
+      const response = await fetch(`${API_BASE_URL}/ratings`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(requestBody)
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          alert(data.message || 'Rating submitted successfully!');
+          setComment('');
+          await fetchRatings();
+        }
+      } else {
+        const error = await response.json().catch(() => ({}));
+        alert(error.message || `Failed to submit rating`);
+      }
+    } catch (error) {
+      console.error('Error submitting rating:', error);
+      alert('Network error. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Load ratings on mount
+  useEffect(() => {
+    fetchRatings();
+  }, [herbData.id]);
+
+  // Render stars
+  const renderStars = (rating, size = "h-5 w-5") => {
+    const fullStars = Math.floor(rating);
+    const hasHalfStar = rating % 1 >= 0.5;
+    const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+    return (
+      <div className="flex items-center">
+        {[...Array(fullStars)].map((_, i) => (
+          <Star key={`full-${i}`} className={`${size} text-yellow-400 fill-current`} />
+        ))}
+        {hasHalfStar && (
+          <div className="relative">
+            <Star className={`${size} text-yellow-400`} />
+            <div className="absolute inset-0 overflow-hidden w-1/2">
+              <Star className={`${size} text-yellow-400 fill-current`} />
+            </div>
+          </div>
+        )}
+        {[...Array(emptyStars)].map((_, i) => (
+          <Star key={`empty-${i}`} className={`${size} text-gray-300`} />
+        ))}
+      </div>
+    );
+  };
+
+  // Render interactive stars
+  const renderInteractiveStars = () => {
+    return (
+      <div className="flex items-center gap-1 flex-wrap justify-center">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <button
+            key={star}
+            type="button"
+            onMouseEnter={() => setHoverRating(star)}
+            onMouseLeave={() => setHoverRating(0)}
+            onClick={() => setRatingValue(star)}
+            className="focus:outline-none transition-transform hover:scale-110"
+            disabled={isSubmitting}
+          >
+            <Star
+              className={`h-8 w-8 ${
+                (hoverRating || ratingValue) >= star
+                  ? 'text-yellow-400 fill-current'
+                  : 'text-gray-300'
+              } transition-colors ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
+            />
+          </button>
+        ))}
+      </div>
+    );
+  };
 
   const benefits = [
-    { icon: Flame, label: t('herb.benefit.soothes'), color: 'text-orange-500' },
-    { icon: Droplets, label: t('herb.benefit.hydration'), color: 'text-blue-500' },
-    { icon: Shield, label: t('herb.benefit.protects'), color: 'text-emerald-500' },
-    { icon: Zap, label: t('herb.benefit.healing'), color: 'text-purple-500' },
-  ]
+    { icon: Flame, label: 'Anti-inflammatory', color: 'text-orange-500', bg: 'bg-orange-50' },
+    { icon: Droplets, label: 'Hydrating', color: 'text-blue-500', bg: 'bg-blue-50' },
+    { icon: Shield, label: 'Protective', color: 'text-emerald-500', bg: 'bg-emerald-50' },
+    { icon: Zap, label: 'Healing', color: 'text-purple-500', bg: 'bg-purple-50' },
+  ];
 
-  const safetyInfo = [
-    { level: 'safe', text: t('herb.safety.safe') },
-    { level: 'warning', text: t('herb.safety.warning') },
-    { level: 'info', text: t('herb.safety.info') },
-  ]
-
-  const preparationMethods = [
-    {
-      id: 1,
-      title: t('herb.preparation.method1.title'),
-      steps: [
-        t('herb.preparation.method1.step1'),
-        t('herb.preparation.method1.step2'),
-        t('herb.preparation.method1.step3'),
-        t('herb.preparation.method1.step4'),
-        t('herb.preparation.method1.step5')
-      ],
-      duration: t('herb.preparation.method1.duration'),
-      difficulty: t('herb.preparation.method1.difficulty'),
-      traditional: true
-    },
-    {
-      id: 2,
-      title: t('herb.preparation.method2.title'),
-      steps: [
-        t('herb.preparation.method2.step1'),
-        t('herb.preparation.method2.step2'),
-        t('herb.preparation.method2.step3'),
-        t('herb.preparation.method2.step4'),
-        t('herb.preparation.method2.step5')
-      ],
-      duration: t('herb.preparation.method2.duration'),
-      difficulty: t('herb.preparation.method2.difficulty'),
-      traditional: false
-    }
-  ]
+  // Section configuration
+  const sections = [
+    { id: 'description', label: 'Description', icon: BookOpen, desktopOnly: false },
+    { id: 'preparation', label: 'Preparation', icon: FlaskConical, desktopOnly: false },
+    { id: 'safety', label: 'Safety', icon: AlertTriangle, desktopOnly: false },
+    { id: 'source', label: 'Source', icon: BookOpen, desktopOnly: false },
+    { id: 'reviews', label: 'Reviews', icon: MessageCircle, desktopOnly: false },
+  ];
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
       {/* Back Navigation */}
       <button
-        onClick={() => window.history.back()}
-        className="flex items-center text-emerald-600 hover:text-emerald-700 mb-6 group"
+        onClick={handleGoBack}
+        className="flex items-center text-emerald-600 hover:text-emerald-700 mb-4 sm:mb-6 transition-all group"
       >
-        <ChevronLeft className="h-5 w-5 mr-2 group-hover:-translate-x-1 transition-transform" />
-        {t('herb.detail.back')}
+        <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5 mr-1 group-hover:-translate-x-1 transition-transform" />
+        <span className="text-xs sm:text-sm font-medium">Back</span>
       </button>
 
-      <div className="grid lg:grid-cols-3 gap-8">
-        {/* Left Column - Herb Info */}
-        <div className="lg:col-span-2">
-          {/* Header */}
-          <div className="bg-gradient-to-r from-emerald-50 to-white rounded-3xl border border-emerald-100 p-6 mb-8">
-            <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center">
-                    <Leaf className="h-8 w-8 text-white" />
-                  </div>
-                  <div>
-                    <h1 className="text-3xl md:text-4xl font-bold text-gray-900">{herb.name}</h1>
-                    <div className="flex items-center flex-wrap gap-2 mt-2">
-                      <span className="text-lg text-emerald-600 font-medium">{herb.localName}</span>
-                      <span className="text-gray-400">•</span>
-                      <span className="text-gray-600">{herb.scientificName}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap gap-4 mb-6">
-                  <div className="flex items-center">
-                    <Star className="h-5 w-5 text-amber-500 mr-2" />
-                    <span className="font-semibold text-gray-900">{herb.effectiveness}{t('herb.detail.effective')}</span>
-                  </div>
-                  <div className="flex items-center">
-                    <Calendar className="h-5 w-5 text-emerald-500 mr-2" />
-                    <span className="text-gray-600">{t('herb.detail.traditional_use')}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <Button
-                  variant={isBookmarked ? 'primary' : 'outline'}
-                  onClick={() => setIsBookmarked(!isBookmarked)}
-                  className="flex items-center"
-                >
-                  <Bookmark className={`h-5 w-5 ${isBookmarked ? 'mr-2' : ''}`} />
-                  {isBookmarked ? t('herb.detail.saved') : t('herb.detail.save')}
-                </Button>
-                <Button variant="ghost">
-                  <Share2 className="h-5 w-5" />
-                </Button>
-              </div>
-            </div>
+      {/* Hero Section - Herb Name Prominently Displayed */}
+      <div className="bg-gradient-to-r from-emerald-50 to-white rounded-2xl border border-emerald-100 p-6 sm:p-8 mb-6 shadow-sm">
+        <div className="flex items-center gap-4">
+          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-lg">
+            <Leaf className="h-8 w-8 sm:h-10 sm:w-10 text-white" />
           </div>
-
-          {/* Tabs */}
-          <div className="mb-8">
-            <div className="flex space-x-1 border-b border-emerald-100">
-              {['description', 'uses', 'preparation', 'safety', 'research'].map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={`px-6 py-3 text-sm font-medium rounded-t-lg transition-colors ${
-                    activeTab === tab
-                      ? 'bg-emerald-50 text-emerald-700 border-b-2 border-emerald-500'
-                      : 'text-gray-600 hover:text-emerald-700 hover:bg-emerald-50'
-                  }`}
-                >
-                  {t(`herb.tab.${tab}`)}
-                </button>
-              ))}
-            </div>
-
-            {/* Tab Content */}
-            <div className="mt-6">
-              {activeTab === 'description' && (
-                <div className="prose prose-lg max-w-none">
-                  <p className="text-gray-700 leading-relaxed">
-                    {herb.description}
-                  </p>
-                  
-                  <div className="grid md:grid-cols-2 gap-6 mt-8">
-                    {benefits.map((benefit, index) => (
-                      <div key={index} className="flex items-center p-4 bg-white border border-emerald-100 rounded-xl">
-                        <benefit.icon className={`h-8 w-8 ${benefit.color} mr-4`} />
-                        <div>
-                          <h4 className="font-semibold text-gray-900">{benefit.label}</h4>
-                          <p className="text-sm text-gray-600 mt-1">{t('herb.benefit.traditional')}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {activeTab === 'uses' && (
-                <div className="space-y-6">
-                  <h3 className="text-xl font-bold text-gray-900">{t('herb.uses.title')}</h3>
-                  <div className="grid md:grid-cols-2 gap-4">
-                    {herb.uses.map((use, index) => (
-                      <div key={index} className="p-4 bg-emerald-50 rounded-xl">
-                        <div className="flex items-center mb-2">
-                          <div className="w-2 h-2 rounded-full bg-emerald-500 mr-3"></div>
-                          <h4 className="font-semibold text-gray-900">{use}</h4>
-                        </div>
-                        <p className="text-sm text-gray-600">
-                          {t('herb.uses.description')}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {activeTab === 'preparation' && (
-                <div className="space-y-6">
-                  <h3 className="text-xl font-bold text-gray-900">{t('herb.preparation.title')}</h3>
-                  <div className="space-y-4">
-                    {preparationMethods.map((method) => (
-                      <div key={method.id} className="border border-emerald-100 rounded-xl overflow-hidden">
-                        <div className="p-4 bg-emerald-50 flex justify-between items-center">
-                          <div>
-                            <h4 className="font-bold text-gray-900">{method.title}</h4>
-                            <div className="flex items-center gap-4 mt-2">
-                              <span className="flex items-center text-sm text-gray-600">
-                                <Clock className="h-4 w-4 mr-1" />
-                                {t('herb.preparation.duration')}: {method.duration}
-                              </span>
-                              <span className="text-sm text-gray-600">{t('herb.preparation.difficulty')}: {method.difficulty}</span>
-                              {method.traditional && (
-                                <span className="px-2 py-1 bg-amber-100 text-amber-700 text-xs font-bold rounded">
-                                  {t('herb.preparation.traditional')}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          <Button
-                            variant="primary"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedPreparation(method)
-                              setShowPreparationModal(true)
-                            }}
-                          >
-                            {t('herb.preparation.view_steps')}
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column - Sidebar */}
-        <div className="lg:col-span-1 space-y-6">
-          {/* Safety Card */}
-          <div className="bg-white border border-emerald-100 rounded-2xl p-6">
-            <div className="flex items-center mb-4">
-              <AlertCircle className="h-6 w-6 text-amber-500 mr-3" />
-              <h3 className="text-lg font-bold text-gray-900">{t('herb.safety.title')}</h3>
+          <div className="flex-1">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 break-words">{herbData.name}</h1>
+            <p className="text-base sm:text-lg text-gray-600 italic mt-1 break-words">{herbData.scientificName}</p>
+            
+            {/* Rating Summary */}
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-3">
+              <div className="flex items-center">
+                {renderStars(averageRating, "h-3 w-3 sm:h-4 sm:w-4")}
+              </div>
+              <span className="text-xs sm:text-sm font-medium text-gray-700">
+                {averageRating.toFixed(1)} / 5
+              </span>
+              <span className="text-xs sm:text-sm text-gray-500">
+                ({totalRatings} {totalRatings === 1 ? 'review' : 'reviews'})
+              </span>
             </div>
             
-            <div className="space-y-3">
-              {safetyInfo.map((info, index) => (
-                <div key={index} className="flex items-start">
-                  <div className={`w-2 h-2 rounded-full mt-2 mr-3 ${
-                    info.level === 'safe' ? 'bg-emerald-500' :
-                    info.level === 'warning' ? 'bg-amber-500' :
-                    'bg-blue-500'
-                  }`}></div>
-                  <p className="text-sm text-gray-700">{info.text}</p>
-                </div>
-              ))}
-            </div>
-
-            <Button variant="outline" className="w-full mt-4">
-              <AlertCircle className="h-4 w-4 mr-2" />
-              {t('herb.safety.read')}
-            </Button>
-          </div>
-
-          {/* Quick Actions */}
-          <div className="bg-gradient-to-br from-emerald-50 to-white border border-emerald-100 rounded-2xl p-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-4">{t('herb.actions.title')}</h3>
-            <div className="space-y-3">
-              <Button variant="primary" className="w-full">
-                <Heart className="h-5 w-5 mr-2" />
-                {t('herb.actions.recommendations')}
-              </Button>
-              <Button variant="outline" className="w-full">
-                <BookOpen className="h-5 w-5 mr-2" />
-                {t('herb.actions.research')}
-              </Button>
-              <Button variant="ghost" className="w-full">
-                <ExternalLink className="h-5 w-5 mr-2" />
-                {t('herb.actions.share')}
-              </Button>
-            </div>
-          </div>
-
-          {/* Herb Properties */}
-          <div className="bg-white border border-emerald-100 rounded-2xl p-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-4">{t('herb.properties.title')}</h3>
-            <div className="space-y-4">
-              {[
-                { label: t('herb.properties.category'), value: herb.category },
-                { label: t('herb.properties.part_used'), value: t('herb.properties.parts.leaves_gel') },
-                { label: t('herb.properties.harvest'), value: t('herb.properties.harvest.year_round') },
-                { label: t('herb.properties.region'), value: t('herb.properties.region.ethiopia') },
-                { label: t('herb.properties.conservation'), value: t('herb.properties.conservation.least_concern') },
-              ].map((prop) => (
-                <div key={prop.label} className="flex justify-between items-center py-2 border-b border-emerald-50">
-                  <span className="text-sm text-gray-600">{prop.label}</span>
-                  <span className="text-sm font-medium text-gray-900">{prop.value}</span>
-                </div>
-              ))}
+            <div className="flex flex-wrap items-center gap-3 sm:gap-4 mt-3 text-xs sm:text-sm text-gray-500">
+              <div className="flex items-center">
+                <Calendar className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                <span>Added {herbData.createdAt ? new Date(herbData.createdAt).toLocaleDateString() : 'Recently'}</span>
+              </div>
+              <div className="flex items-center">
+                <Eye className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                <span>{herbData.views} views</span>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Preparation Modal */}
-      <Modal
-        isOpen={showPreparationModal}
-        onClose={() => setShowPreparationModal(false)}
-        title={selectedPreparation?.title}
-        size="lg"
-      >
-        {selectedPreparation && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between text-sm text-gray-600">
-              <div className="flex items-center">
-                <Clock className="h-4 w-4 mr-2" />
-                {t('herb.preparation.duration')}: {selectedPreparation.duration}
-              </div>
-              <div className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full">
-                {selectedPreparation.difficulty}
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <h4 className="font-semibold text-gray-900">{t('herb.modal.steps')}:</h4>
-              <ol className="space-y-3">
-                {selectedPreparation.steps.map((step, index) => (
-                  <li key={index} className="flex items-start">
-                    <div className="flex-shrink-0 w-8 h-8 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center font-bold mr-3">
-                      {index + 1}
-                    </div>
-                    <p className="text-gray-700 pt-1">{step}</p>
-                  </li>
+      {/* Main Content */}
+      <div className="flex flex-col lg:grid lg:grid-cols-3 gap-6 lg:gap-8">
+        {/* Left Column - Main Content */}
+        <div className="lg:col-span-2 space-y-4">
+          
+          {/* Desktop Tabs - Horizontal */}
+          <div className="hidden lg:block bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+            <div className="border-b border-gray-200">
+              <div className="flex overflow-x-auto">
+                {sections.map((section) => (
+                  <button
+                    key={section.id}
+                    onClick={() => setActiveTab(section.id)}
+                    className={`px-6 py-4 text-sm font-medium transition-all relative whitespace-nowrap ${
+                      activeTab === section.id
+                        ? 'text-emerald-600'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    <section.icon className="h-4 w-4 inline mr-2" />
+                    {section.label}
+                    {activeTab === section.id && (
+                      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-500 rounded-full" />
+                    )}
+                  </button>
                 ))}
-              </ol>
+              </div>
             </div>
 
-            <div className="pt-6 border-t border-emerald-100">
-              <div className="bg-amber-50 border border-amber-100 rounded-xl p-4">
-                <div className="flex items-start">
-                  <AlertCircle className="h-5 w-5 text-amber-500 mr-3 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <h5 className="font-semibold text-amber-800 mb-1">{t('herb.modal.important_note')}</h5>
-                    <p className="text-sm text-amber-700">
-                      {t('herb.modal.note_text')}
-                    </p>
+            <div className="p-6">
+              {/* Description Tab */}
+              {activeTab === 'description' && (
+                <div className="space-y-6">
+                  <p className="text-gray-700 leading-relaxed whitespace-pre-line">{herbData.description}</p>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {benefits.map((benefit, index) => (
+                      <div key={index} className={`${benefit.bg} rounded-xl p-3 text-center`}>
+                        <benefit.icon className={`h-6 w-6 ${benefit.color} mx-auto mb-2`} />
+                        <span className="text-xs font-medium text-gray-700">{benefit.label}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
+              )}
+
+              {/* Preparation Tab */}
+              {activeTab === 'preparation' && (
+                <div className="space-y-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                      <FlaskConical className="h-5 w-5 text-emerald-600" />
+                    </div>
+                    <p className="text-gray-700 whitespace-pre-line leading-relaxed flex-1">{herbData.preparation}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Safety Tab */}
+              {activeTab === 'safety' && (
+                <div className="space-y-4">
+                  <div className="space-y-3">
+                    {safetyPoints.length > 0 ? (
+                      safetyPoints.map((point, index) => (
+                        <div key={index} className="flex items-start gap-2">
+                          <div className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-2" />
+                          <p className="text-gray-700 flex-1">{point}.</p>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-gray-700">{herbData.safetyWarning}</p>
+                    )}
+                  </div>
+                  <div className="mt-4 p-4 bg-amber-50 rounded-xl border border-amber-100">
+                    <p className="text-sm text-amber-800">Always consult with a healthcare provider before using any herbal remedy.</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Source Tab */}
+              {activeTab === 'source' && (
+                <div className="space-y-4">
+                  {herbData.source ? (
+                    <>
+                      <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
+                        <p className="text-gray-700 whitespace-pre-line leading-relaxed">{herbData.source}</p>
+                      </div>
+                      <p className="text-xs text-gray-500">Information source for this herb's medicinal properties and usage</p>
+                    </>
+                  ) : (
+                    <p className="text-gray-500 italic">No source information available.</p>
+                  )}
+                </div>
+              )}
+
+              {/* Reviews Tab */}
+              {activeTab === 'reviews' && (
+                <div className="space-y-6">
+                  <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                      <ThumbsUp className="h-5 w-5 text-emerald-600" />
+                      {userRating ? 'Update Your Rating' : 'Rate this Herb'}
+                    </h3>
+                    <div className="space-y-4">
+                      <div className="flex flex-col items-center gap-3">
+                        <span className="text-sm text-gray-600">Your Rating</span>
+                        {renderInteractiveStars()}
+                      </div>
+                      <textarea
+                        value={comment}
+                        onChange={(e) => setComment(e.target.value)}
+                        rows="3"
+                        placeholder="Share your experience..."
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none resize-none"
+                        disabled={isSubmitting}
+                      />
+                      <button
+                        onClick={submitRating}
+                        disabled={isSubmitting || ratingValue === 0}
+                        className={`w-full py-2 rounded-lg font-medium transition-all ${
+                          isSubmitting || ratingValue === 0
+                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                            : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                        }`}
+                      >
+                        {isSubmitting ? 'Submitting...' : (userRating ? 'Update Rating' : 'Submit Rating')}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                      <MessageCircle className="h-5 w-5 text-emerald-600" />
+                      User Reviews ({totalRatings})
+                    </h3>
+                    {isLoadingRatings ? (
+                      <div className="text-center py-8">Loading reviews...</div>
+                    ) : ratings.length === 0 ? (
+                      <div className="text-center py-8 bg-gray-50 rounded-xl">
+                        <MessageCircle className="h-12 w-12 text-gray-300 mx-auto mb-2" />
+                        <p className="text-gray-500">No reviews yet. Be the first!</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {ratings.map((rating, index) => (
+                          <div key={index} className="bg-white border border-gray-200 rounded-xl p-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white font-bold">
+                                {rating.user?.full_name?.charAt(0) || 'U'}
+                              </div>
+                              <div>
+                                <p className="font-medium text-gray-900">{rating.user?.full_name || `User ${rating.user_id}`}</p>
+                                <div className="flex items-center gap-2 mt-1">
+                                  {renderStars(rating.rating_value, "h-4 w-4")}
+                                  <span className="text-xs text-gray-500">
+                                    {new Date(rating.created_at).toLocaleDateString()}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                            {rating.comment && <p className="mt-3 text-gray-700">{rating.comment}</p>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Mobile Accordion Sections */}
+          <div className="lg:hidden space-y-3">
+            {sections.map((section) => (
+              <div key={section.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+                <button
+                  onClick={() => toggleSection(section.id)}
+                  className="w-full flex items-center justify-between px-4 py-3 bg-white hover:bg-gray-50 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <section.icon className="h-5 w-5 text-emerald-600" />
+                    <span className="font-semibold text-gray-900">{section.label}</span>
+                  </div>
+                  {openSections[section.id] ? (
+                    <ChevronUp className="h-5 w-5 text-gray-400" />
+                  ) : (
+                    <ChevronDown className="h-5 w-5 text-gray-400" />
+                  )}
+                </button>
+                
+                {openSections[section.id] && (
+                  <div className="px-4 py-4 border-t border-gray-100 bg-gray-50/30">
+                    {/* Description Section */}
+                    {section.id === 'description' && (
+                      <div className="space-y-3">
+                        <p className="text-gray-700 leading-relaxed text-sm">{herbData.description}</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {benefits.map((benefit, index) => (
+                            <div key={index} className={`${benefit.bg} rounded-lg p-2 text-center`}>
+                              <benefit.icon className={`h-5 w-5 ${benefit.color} mx-auto mb-1`} />
+                              <span className="text-xs font-medium text-gray-700">{benefit.label}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Preparation Section */}
+                    {section.id === 'preparation' && (
+                      <div className="flex items-start gap-2">
+                        <FlaskConical className="h-5 w-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                        <p className="text-gray-700 text-sm leading-relaxed">{herbData.preparation}</p>
+                      </div>
+                    )}
+
+                    {/* Safety Section */}
+                    {section.id === 'safety' && (
+                      <div className="space-y-2">
+                        {safetyPoints.slice(0, 4).map((point, index) => (
+                          <div key={index} className="flex items-start gap-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5" />
+                            <p className="text-gray-700 text-sm flex-1">{point}.</p>
+                          </div>
+                        ))}
+                        <div className="mt-3 p-2 bg-amber-50 rounded-lg">
+                          <p className="text-xs text-amber-700">Always consult a healthcare provider before use.</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Source Section */}
+                    {section.id === 'source' && (
+                      <div>
+                        {herbData.source ? (
+                          <>
+                            <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
+                              <p className="text-gray-700 text-sm">{herbData.source}</p>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-2">Source for this herb's information</p>
+                          </>
+                        ) : (
+                          <p className="text-gray-500 text-sm italic">No source information available.</p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Reviews Section */}
+                    {section.id === 'reviews' && (
+                      <div className="space-y-4">
+                        <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                          <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                            <ThumbsUp className="h-4 w-4 text-emerald-600" />
+                            {userRating ? 'Update Rating' : 'Rate this Herb'}
+                          </h4>
+                          <div className="space-y-3">
+                            <div className="flex flex-col items-center gap-2">
+                              <span className="text-xs text-gray-600">Your Rating</span>
+                              {renderInteractiveStars()}
+                            </div>
+                            <textarea
+                              value={comment}
+                              onChange={(e) => setComment(e.target.value)}
+                              rows="2"
+                              placeholder="Share your experience..."
+                              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none resize-none"
+                              disabled={isSubmitting}
+                            />
+                            <button
+                              onClick={submitRating}
+                              disabled={isSubmitting || ratingValue === 0}
+                              className={`w-full py-2 rounded-lg font-medium text-sm transition-all ${
+                                isSubmitting || ratingValue === 0
+                                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                  : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                              }`}
+                            >
+                              {isSubmitting ? 'Submitting...' : (userRating ? 'Update Rating' : 'Submit Rating')}
+                            </button>
+                          </div>
+                        </div>
+
+                        <div>
+                          <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                            <MessageCircle className="h-4 w-4 text-emerald-600" />
+                            User Reviews ({totalRatings})
+                          </h4>
+                          {ratings.length === 0 ? (
+                            <div className="text-center py-6 bg-gray-50 rounded-lg">
+                              <MessageCircle className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+                              <p className="text-xs text-gray-500">No reviews yet.</p>
+                            </div>
+                          ) : (
+                            <div className="space-y-3">
+                              {ratings.slice(0, 5).map((rating, index) => (
+                                <div key={index} className="bg-white border border-gray-200 rounded-lg p-3">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white font-bold text-xs">
+                                      {rating.user?.full_name?.charAt(0) || 'U'}
+                                    </div>
+                                    <div className="flex-1">
+                                      <p className="font-medium text-gray-900 text-sm">{rating.user?.full_name || `User ${rating.user_id}`}</p>
+                                      <div className="flex items-center gap-2 mt-1">
+                                        {renderStars(rating.rating_value, "h-3 w-3")}
+                                        <span className="text-xs text-gray-400">
+                                          {new Date(rating.created_at).toLocaleDateString()}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  {rating.comment && <p className="mt-2 text-gray-600 text-sm">{rating.comment}</p>}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Right Column - Sidebar */}
+        <div className="space-y-4 sm:space-y-6">
+          {/* Quick Info Card */}
+          <div className="bg-white rounded-xl sm:rounded-2xl border border-gray-200 p-4 sm:p-6 shadow-sm">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Quick Info</h3>
+            <div className="space-y-2 sm:space-y-3">
+              <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                <span className="text-xs sm:text-sm text-gray-600">Status</span>
+                <span className="text-xs sm:text-sm font-medium text-emerald-600 bg-emerald-50 px-2 sm:px-3 py-1 rounded-full">
+                  Published
+                </span>
+              </div>
+              
+              <div className="py-2 border-b border-gray-100">
+                <div className="flex items-center gap-2 mb-2">
+                  <Layers className="h-3 w-3 sm:h-4 sm:w-4 text-emerald-500" />
+                  <span className="text-xs sm:text-sm text-gray-600">Conditions Treated</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                  {herbData.conditionNames && herbData.conditionNames.length > 0 ? (
+                    herbData.conditionNames.slice(0, 3).map((conditionName, index) => {
+                      const Icon = getConditionIcon(conditionName);
+                      return (
+                        <span key={index} className="inline-flex items-center gap-1 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium bg-emerald-100 text-emerald-700">
+                          <Icon className="h-2 w-2 sm:h-3 sm:w-3" />
+                          {conditionName.length > 15 ? conditionName.substring(0, 12) + '...' : conditionName}
+                        </span>
+                      );
+                    })
+                  ) : (
+                    <span className="text-xs text-gray-500">General Wellness</span>
+                  )}
+                </div>
+              </div>
+              
+              <div className="flex justify-between items-center py-2">
+                <span className="text-xs sm:text-sm text-gray-600">Last Updated</span>
+                <span className="text-xs sm:text-sm font-medium text-gray-900">
+                  {herbData.updatedAt ? new Date(herbData.updatedAt).toLocaleDateString() : 'Today'}
+                </span>
               </div>
             </div>
           </div>
-        )}
-      </Modal>
+
+          {/* Rating Summary Card */}
+          <div className="bg-gradient-to-br from-yellow-50 to-white rounded-xl sm:rounded-2xl border border-yellow-100 p-4 sm:p-6 shadow-sm">
+            <div className="flex items-center gap-2 mb-3">
+              <Star className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-500 fill-current" />
+              <h3 className="text-sm sm:text-base font-semibold text-gray-900">Rating Summary</h3>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">{averageRating.toFixed(1)}</div>
+              <div className="flex justify-center mb-2">{renderStars(averageRating, "h-4 w-4 sm:h-5 sm:w-5")}</div>
+              <p className="text-xs sm:text-sm text-gray-600">Based on {totalRatings} {totalRatings === 1 ? 'review' : 'reviews'}</p>
+            </div>
+            {!userRating && user && (
+              <button 
+                onClick={() => {
+                  setActiveTab('reviews');
+                  if (window.innerWidth < 1024) toggleSection('reviews');
+                }} 
+                className="mt-4 w-full text-center text-xs sm:text-sm font-medium text-emerald-600"
+              >
+                Rate this herb →
+              </button>
+            )}
+          </div>
+
+          {/* Source Summary Card */}
+          {herbData.source && herbData.source.trim() !== '' && (
+            <div className="bg-gradient-to-br from-blue-50 to-white rounded-xl sm:rounded-2xl border border-blue-100 p-4 sm:p-6 shadow-sm">
+              <div className="flex items-center gap-2 mb-3">
+                <BookOpen className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
+                <h3 className="text-sm sm:text-base font-semibold text-gray-900">Source Info</h3>
+              </div>
+              <p className="text-xs sm:text-sm text-gray-700 line-clamp-3 mb-3">{herbData.source.substring(0, 100)}...</p>
+              <button 
+                onClick={() => {
+                  setActiveTab('source');
+                  if (window.innerWidth < 1024) toggleSection('source');
+                }} 
+                className="text-xs sm:text-sm font-medium text-blue-600"
+              >
+                View full source →
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }

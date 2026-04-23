@@ -4,14 +4,15 @@ import { createContext, useState, useContext, useEffect } from 'react'
 const LanguageContext = createContext()
 
 export const languages = [
-  { code: 'EN', name: 'English', nativeName: 'English' },
-  { code: 'AM', name: 'Amharic', nativeName: 'አማርኛ' },
-  { code: 'OR', name: 'Oromo', nativeName: 'Afaan Oromoo' }
+  { code: 'EN', name: 'English', nativeName: 'English', apiCode: 'EN' },
+  { code: 'AM', name: 'Amharic', nativeName: 'አማርኛ', apiCode: 'AM' },
+  { code: 'OM', name: 'Oromo', nativeName: 'Afaan Oromoo', apiCode: 'OM' }  // Changed from 'OR' to 'OM'
 ]
 
 export const LanguageProvider = ({ children }) => {
   const [language, setLanguage] = useState('EN')
   const [direction, setDirection] = useState('ltr')
+  const [showLanguageMenu, setShowLanguageMenu] = useState(false)
 
   useEffect(() => {
     // Check if there's a saved language in localStorage
@@ -34,10 +35,24 @@ export const LanguageProvider = ({ children }) => {
 
   const changeLanguage = (langCode) => {
     setLanguage(langCode)
+    setShowLanguageMenu(false)
+  }
+
+  // Get the API language code (EN, AM, OM)
+  const getApiLanguageCode = () => {
+    const lang = languages.find(l => l.code === language);
+    return lang?.apiCode || 'EN';
   }
 
   return (
-    <LanguageContext.Provider value={{ language, changeLanguage, languages }}>
+    <LanguageContext.Provider value={{ 
+      language, 
+      changeLanguage, 
+      languages, 
+      showLanguageMenu, 
+      setShowLanguageMenu,
+      getApiLanguageCode 
+    }}>
       {children}
     </LanguageContext.Provider>
   )

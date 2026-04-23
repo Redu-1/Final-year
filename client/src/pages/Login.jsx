@@ -1,14 +1,23 @@
 // src/pages/Login.jsx
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import LoginForm from '../components/auth/LoginForm'
-import Layout from '../components/layout/Layout'
 import { LoadingDots } from '../components/common/LoadingSpinner'
 import { useTranslation } from '../hooks/useTranslation'
+import { useAuth } from '../contexts/AuthContext'
 
 const Login = () => {
   const [isLoading, setIsLoading] = useState(true)
   const { t } = useTranslation()
+  const { user } = useAuth()
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    // If user is already logged in, redirect to home
+    if (user) {
+      navigate('/')
+    }
+  }, [user, navigate])
 
   useEffect(() => {
     // Simulate loading for animations
@@ -28,9 +37,9 @@ const Login = () => {
   }
 
   return (
-    <Layout>
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-emerald-50/30 pt-20">
       <LoginForm />
-    </Layout>
+    </div>
   )
 }
 

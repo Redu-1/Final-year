@@ -10,100 +10,19 @@ import ViewHerbModal from '../../components/herbs/ViewHerbModal';
 import DeleteConfirmationModal from '../../components/common/DeleteConfirmationModal';
 import { 
   PlusIcon, 
-  FunnelIcon, 
   ArrowPathIcon, 
   Squares2X2Icon, 
   ListBulletIcon,
   DocumentArrowDownIcon,
   DocumentTextIcon,
-  TableCellsIcon
+  TableCellsIcon,
+  ExclamationTriangleIcon,
+  CheckCircleIcon,
+  ClockIcon,
+  ShieldCheckIcon
 } from '@heroicons/react/24/outline';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
-
-// Initial herbs data with categories and skin conditions
-const initialHerbs = [
-  {
-    id: 1,
-    commonName: 'Aloe vera',
-    scientificName: 'Aloe barbadensis miller',
-    partsUsed: 'LEAVES',
-    indigenousRegion: 'Various',
-    status: 'published',
-    description: 'Soothing gel for burns and skin conditions',
-    medicinalUses: 'Treats burns, wounds, and skin irritations. Provides deep hydration and soothes sunburns.',
-    contraindications: 'Oral use may cause abdominal cramps. Not recommended during pregnancy.',
-    dosage: 'Apply gel topically 2-3 times daily',
-    preparation: 'Extract gel from fresh leaves or use cold-pressed gel',
-    storageInstructions: 'Store fresh gel in refrigerator for up to 1 week',
-    imageUrl: '',
-    skinConditions: ['dry-skin', 'itching', 'cuts', 'irritations'],
-    categories: ['succulents', 'healing', 'medicinal'],
-    lastUpdated: '2 days ago',
-    createdAt: new Date('2024-01-01').toISOString(),
-    addedBy: 'Admin'
-  },
-  {
-    id: 2,
-    commonName: 'Ashwagandha',
-    scientificName: 'Withania somnifera',
-    partsUsed: 'ROOTS',
-    indigenousRegion: 'India, Middle East',
-    status: 'published',
-    description: 'Adaptogen for stress and vitality',
-    medicinalUses: 'Reduces stress and anxiety, improves energy levels, enhances cognitive function',
-    contraindications: 'Avoid during pregnancy. May interact with thyroid medications.',
-    dosage: '300-500mg extract daily',
-    preparation: 'Root powder mixed with warm milk or water',
-    storageInstructions: 'Store in cool, dry place away from sunlight',
-    imageUrl: '',
-    skinConditions: [],
-    categories: ['medicinal', 'healing'],
-    lastUpdated: '1 week ago',
-    createdAt: new Date('2024-01-02').toISOString(),
-    addedBy: 'Admin'
-  },
-  {
-    id: 3,
-    commonName: 'Kava Kava',
-    scientificName: 'Piper methysticum',
-    partsUsed: 'ROOTS',
-    indigenousRegion: 'Pacific Islands',
-    status: 'draft',
-    description: 'Anxiolytic and relaxant',
-    medicinalUses: 'Reduces anxiety, promotes relaxation, improves sleep quality',
-    contraindications: 'Potential liver toxicity. Avoid with alcohol. Not for long-term use.',
-    dosage: '150-300mg extract',
-    preparation: 'Traditional beverage or standardized extract',
-    storageInstructions: 'Store in sealed container away from light',
-    imageUrl: '',
-    skinConditions: ['pain'],
-    categories: ['medicinal', 'healing'],
-    lastUpdated: '3 days ago',
-    createdAt: new Date('2024-01-03').toISOString(),
-    addedBy: 'Admin'
-  },
-  {
-    id: 4,
-    commonName: 'Rooibos',
-    scientificName: 'Aspalathus linearis',
-    partsUsed: 'SHRUB/LEAVES',
-    indigenousRegion: 'South Africa',
-    status: 'published',
-    description: 'Antioxidant-rich herbal tea',
-    medicinalUses: 'Rich in antioxidants, supports digestion, may improve bone health',
-    contraindications: 'Generally safe, minimal contraindications',
-    dosage: '1-2 cups tea daily',
-    preparation: 'Steep leaves in hot water for 5-7 minutes',
-    storageInstructions: 'Store in airtight container in cool, dry place',
-    imageUrl: '',
-    skinConditions: ['inflammation', 'aging'],
-    categories: ['spices', 'aromatic'],
-    lastUpdated: '1 month ago',
-    createdAt: new Date('2024-01-04').toISOString(),
-    addedBy: 'Admin'
-  }
-];
+import { herbApi } from '../../services/herbApi';
+import { useAuth } from '../../contexts/AuthContext';
 
 const HerbsManagement = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -116,20 +35,51 @@ const HerbsManagement = () => {
   const [selectedHerb, setSelectedHerb] = useState(null);
   const [sortBy, setSortBy] = useState('newest');
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const [herbs, setHerbs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [actionError, setActionError] = useState(null);
+  const [updateSuccess, setUpdateSuccess] = useState(false);
   
-  // Load herbs from localStorage on initial render
-  const [herbs, setHerbs] = useState(() => {
-    const savedHerbs = localStorage.getItem('herbiSense_herbs');
-    if (savedHerbs) {
-      return JSON.parse(savedHerbs);
-    }
-    return initialHerbs;
-  });
+  const { userType } = useAuth();
+  const isAdmin = userType === 'admin';
 
-  // Save herbs to localStorage whenever herbs change
+  // Fetch herbs from API on component mount
   useEffect(() => {
-    localStorage.setItem('herbiSense_herbs', JSON.stringify(herbs));
-  }, [herbs]);
+    fetchHerbs();
+  }, []);
+
+  const fetchHerbs = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await herbApi.getAllHerbs();
+      console.log('📦 Fetched herbs:', data);
+      
+      if (data && Array.isArray(data)) {
+        data.forEach(herb => {
+          console.log(`  - ${herb.name}: status="${herb.status}", imageUrl=${herb.imageUrl || 'No image'}`);
+        });
+        
+        console.log('📊 Status breakdown:', {
+          total: data.length,
+          published: data.filter(h => h.status === 'published').length,
+          pending: data.filter(h => h.status === 'pending').length
+        });
+        
+        setHerbs(data);
+      } else {
+        console.warn('Expected array but got:', data);
+        setHerbs([]);
+      }
+    } catch (err) {
+      console.error('Error fetching herbs:', err);
+      setError('Failed to load herbs. Please try again.');
+      setHerbs([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Add blur effect to dashboard when any modal is open
   useEffect(() => {
@@ -156,11 +106,11 @@ const HerbsManagement = () => {
     };
   }, [isAddModalOpen, isEditModalOpen, isViewModalOpen, isDeleteModalOpen]);
 
+  // Status options
   const statusOptions = [
-    { value: 'all', label: 'All Status' },
-    { value: 'published', label: 'Published' },
-    { value: 'draft', label: 'Draft' },
-    { value: 'pending', label: 'Pending Review' }
+    { value: 'all', label: 'All Status', icon: null },
+    { value: 'published', label: 'Published', icon: CheckCircleIcon },
+    { value: 'pending', label: 'Pending', icon: ClockIcon }
   ];
 
   const sortOptions = [
@@ -174,67 +124,116 @@ const HerbsManagement = () => {
   // Filter and sort herbs
   const filteredHerbs = herbs
     .filter(herb => {
-      // Status filter
+      // Only show pending and published herbs
+      if (herb.status !== 'pending' && herb.status !== 'published') {
+        return false;
+      }
+      
+      // Filter by status
       if (statusFilter !== 'all' && herb.status !== statusFilter) return false;
       
-      // Search filter
+      // Filter by search query
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
         return (
-          herb.commonName.toLowerCase().includes(query) ||
-          herb.scientificName.toLowerCase().includes(query) ||
-          herb.indigenousRegion.toLowerCase().includes(query) ||
-          herb.categories?.some(cat => cat.toLowerCase().includes(query))
+          (herb.name?.toLowerCase() || '').includes(query) ||
+          (herb.scientificName?.toLowerCase() || '').includes(query) ||
+          (herb.description?.toLowerCase() || '').includes(query)
         );
       }
       return true;
     })
     .sort((a, b) => {
-      // Sorting
+      const nameA = a.name || '';
+      const nameB = b.name || '';
+      const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0);
+      const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0);
+      
       switch (sortBy) {
         case 'oldest':
-          return new Date(a.createdAt) - new Date(b.createdAt);
+          return dateA - dateB;
         case 'name-asc':
-          return a.commonName.localeCompare(b.commonName);
+          return nameA.localeCompare(nameB);
         case 'name-desc':
-          return b.commonName.localeCompare(a.commonName);
+          return nameB.localeCompare(nameA);
         case 'status':
-          return a.status.localeCompare(b.status);
-        default: // newest
-          return new Date(b.createdAt) - new Date(a.createdAt);
+          return (a.status || '').localeCompare(b.status || '');
+        case 'newest':
+        default:
+          return dateB - dateA;
       }
     });
 
-  const handleAddHerb = (newHerbData) => {
-    const newId = herbs.length > 0 ? Math.max(...herbs.map(h => h.id)) + 1 : 1;
-    const now = new Date();
-    
-    const newHerb = {
-      id: newId,
-      ...newHerbData,
-      lastUpdated: 'Just now',
-      createdAt: now.toISOString(),
-      updatedAt: now.toISOString(),
-      addedBy: 'Current User'
-    };
-    
-    setHerbs(prev => [newHerb, ...prev]);
-    setIsAddModalOpen(false);
+  const pendingHerbs = filteredHerbs.filter(herb => herb.status === 'pending');
+  const publishedHerbs = filteredHerbs.filter(herb => herb.status === 'published');
+
+  const handleAddHerb = async (newHerbData) => {
+    try {
+      setActionError(null);
+      console.log('🆕 New herb added from modal:', newHerbData);
+      
+      // Close modal first
+      setIsAddModalOpen(false);
+      
+      // Show success message
+      alert('✅ Herb added successfully!');
+      
+      // Refresh to get the latest data including the new herb
+      await fetchHerbs();
+      
+      console.log('🔄 Herbs list refreshed after adding new herb');
+    } catch (err) {
+      console.error('❌ Error in handleAddHerb:', err);
+      setActionError(err.message || 'Failed to add herb. Please try again.');
+      alert(`Failed to add herb: ${err.message}`);
+    }
   };
 
-  const handleEditHerb = (updatedHerb) => {
-    setHerbs(prev => prev.map(herb => 
-      herb.id === updatedHerb.id 
-        ? { 
-            ...herb, 
-            ...updatedHerb, 
-            updatedAt: new Date().toISOString(),
-            lastUpdated: 'Just now'
-          }
-        : herb
-    ));
-    setIsEditModalOpen(false);
-    setSelectedHerb(null);
+  const handleEditHerb = async (updatedHerb) => {
+    try {
+      setActionError(null);
+      setUpdateSuccess(false);
+      
+      console.log('========== EDIT HERB DEBUG ==========');
+      console.log('1. Received updatedHerb from modal:', updatedHerb);
+      console.log('2. New status from modal:', updatedHerb.status);
+      console.log('3. Herb ID:', updatedHerb.id);
+      
+      const { id, ...herbData } = updatedHerb;
+      const oldHerb = herbs.find(h => h.id === id);
+      console.log('6. Status change:', oldHerb?.status, '→', updatedHerb.status);
+      
+      // ✅ Use the correct endpoint based on what changed
+      if (updatedHerb.status !== oldHerb?.status) {
+        // Only status changed - use PATCH endpoint
+        console.log('📝 Only status changed, using PATCH endpoint');
+        await herbApi.updateHerbStatus(id, updatedHerb.status);
+      } else {
+        // Multiple fields changed - use PUT endpoint
+        console.log('📝 Multiple fields changed, using PUT endpoint');
+        await herbApi.updateHerb(id, herbData);
+      }
+      
+      // ✅ CRITICAL: ALWAYS refetch after update to ensure consistency
+      await fetchHerbs();
+      
+      setUpdateSuccess(true);
+      setIsEditModalOpen(false);
+      setSelectedHerb(null);
+      
+      if (updatedHerb.status === 'published' && oldHerb?.status === 'pending') {
+        alert('✅ Herb published successfully! It is now visible to all users.');
+      } else {
+        alert('✅ Herb updated successfully!');
+      }
+      
+      console.log('========== END DEBUG ==========');
+      
+    } catch (err) {
+      console.error('❌ Error updating herb:', err);
+      setActionError(err.message || 'Failed to update herb. Please try again.');
+      alert(`Failed to update herb: ${err.message}`);
+    }
   };
 
   const handleViewHerb = (herb) => {
@@ -248,47 +247,65 @@ const HerbsManagement = () => {
   };
 
   const handleDeleteClick = (herb) => {
+    // Only allow delete if user is admin
+    if (!isAdmin) {
+      alert('⚠️ Only administrators can delete herbs. Please contact your system administrator.');
+      return;
+    }
     setSelectedHerb(herb);
     setIsDeleteModalOpen(true);
   };
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (selectedHerb) {
-      setHerbs(prev => prev.filter(herb => herb.id !== selectedHerb.id));
-      setIsDeleteModalOpen(false);
-      setSelectedHerb(null);
+      try {
+        setActionError(null);
+        console.log('Deleting herb:', selectedHerb.id);
+        
+        await herbApi.deleteHerb(selectedHerb.id);
+        
+        // Remove from local state
+        setHerbs(prevHerbs => prevHerbs.filter(herb => herb.id !== selectedHerb.id));
+        
+        setIsDeleteModalOpen(false);
+        setSelectedHerb(null);
+        alert('✅ Herb deleted successfully!');
+      } catch (err) {
+        console.error('❌ Error deleting herb:', err);
+        alert(`Failed to delete herb: ${err.message}`);
+      }
     }
   };
 
-  const handleDuplicateHerb = (herb) => {
-    const newId = herbs.length > 0 ? Math.max(...herbs.map(h => h.id)) + 1 : 1;
-    const now = new Date();
-    
-    const duplicatedHerb = {
-      ...herb,
-      id: newId,
-      commonName: `${herb.commonName} (Copy)`,
-      status: 'draft',
-      createdAt: now.toISOString(),
-      updatedAt: now.toISOString(),
-      lastUpdated: 'Just now',
-      addedBy: 'Current User'
-    };
-    
-    setHerbs(prev => [duplicatedHerb, ...prev]);
+  const handleDuplicateHerb = async (herb) => {
+    try {
+      setActionError(null);
+      // Remove id and timestamps for duplication
+      const { id, createdAt, updatedAt, ...herbData } = herb;
+      
+      const duplicatedHerb = {
+        ...herbData,
+        name: `${herb.name} (Copy)`,
+        status: 'pending'  // Always pending when duplicated
+      };
+      
+      console.log('Duplicating herb:', duplicatedHerb);
+      await herbApi.createHerb(duplicatedHerb);
+      await fetchHerbs(); // Refresh the list
+      alert('✅ Herb duplicated successfully!');
+    } catch (err) {
+      console.error('Error duplicating herb:', err);
+      alert(`Failed to duplicate herb: ${err.message}`);
+    }
   };
 
-  const handleResetData = () => {
-    if (window.confirm('Reset all herbs to initial data? This will remove any custom herbs you added.')) {
-      localStorage.removeItem('herbiSense_herbs');
-      setHerbs(initialHerbs);
-    }
+  const handleRefresh = () => {
+    fetchHerbs();
   };
 
   const handleExportJSON = () => {
     const dataStr = JSON.stringify(herbs, null, 2);
     const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-    
     const exportFileDefaultName = `herbisense_herbs_${new Date().toISOString().split('T')[0]}.json`;
     
     const linkElement = document.createElement('a');
@@ -298,335 +315,23 @@ const HerbsManagement = () => {
     setIsExportMenuOpen(false);
   };
 
-  const handleExportPDF = (exportType = 'all') => {
-    const doc = new jsPDF({
-      orientation: 'landscape',
-      unit: 'mm',
-      format: 'a4'
-    });
-
-    // Add title
-    doc.setFontSize(20);
-    doc.setTextColor(0, 128, 0);
-    doc.text('HerbiSense - Herbs Catalog', 14, 15);
-    
-    // Add subtitle with date
-    doc.setFontSize(11);
-    doc.setTextColor(100, 100, 100);
-    const dateStr = new Date().toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
-    });
-    doc.text(`Generated on: ${dateStr}`, 14, 22);
-    
-    // Add filter information if applicable
-    let yPosition = 30;
-    if (statusFilter !== 'all' || searchQuery) {
-      doc.setFontSize(10);
-      doc.setTextColor(80, 80, 80);
-      let filterText = 'Filters: ';
-      if (statusFilter !== 'all') filterText += `Status: ${statusFilter} `;
-      if (searchQuery) filterText += `Search: "${searchQuery}" `;
-      doc.text(filterText, 14, yPosition);
-      yPosition += 7;
-    }
-
-    // Prepare data for the table
-    let herbsToExport = exportType === 'filtered' ? filteredHerbs : herbs;
-    
-    // Create table headers
-    const headers = [
-      [
-        'ID',
-        'Common Name',
-        'Scientific Name',
-        'Parts Used',
-        'Region',
-        'Status',
-        'Categories',
-        'Skin Conditions',
-        'Dosage',
-        'Last Updated'
-      ]
-    ];
-
-    // Create table data
-    const data = herbsToExport.map(herb => [
-      herb.id.toString(),
-      herb.commonName,
-      herb.scientificName,
-      herb.partsUsed.replace('_', ' '),
-      herb.indigenousRegion,
-      herb.status.charAt(0).toUpperCase() + herb.status.slice(1),
-      herb.categories?.map(c => c.charAt(0).toUpperCase() + c.slice(1)).join(', ') || 'N/A',
-      herb.skinConditions?.map(c => c.split('-').map(word => 
-        word.charAt(0).toUpperCase() + word.slice(1)
-      ).join(' ')).join(', ') || 'None',
-      herb.dosage || 'N/A',
-      herb.lastUpdated || new Date(herb.updatedAt || herb.createdAt).toLocaleDateString()
-    ]);
-
-    // Add table to PDF
-    doc.autoTable({
-      head: headers,
-      body: data,
-      startY: yPosition,
-      theme: 'grid',
-      styles: {
-        fontSize: 8,
-        cellPadding: 2,
-        lineColor: [200, 200, 200],
-        lineWidth: 0.1,
-      },
-      headStyles: {
-        fillColor: [16, 185, 129],
-        textColor: [255, 255, 255],
-        fontSize: 9,
-        fontStyle: 'bold',
-        halign: 'center'
-      },
-      alternateRowStyles: {
-        fillColor: [240, 253, 244]
-      },
-      columnStyles: {
-        0: { cellWidth: 10 }, // ID
-        1: { cellWidth: 30 }, // Common Name
-        2: { cellWidth: 35 }, // Scientific Name
-        3: { cellWidth: 20 }, // Parts Used
-        4: { cellWidth: 25 }, // Region
-        5: { cellWidth: 15 }, // Status
-        6: { cellWidth: 35 }, // Categories
-        7: { cellWidth: 40 }, // Skin Conditions
-        8: { cellWidth: 25 }, // Dosage
-        9: { cellWidth: 20 }, // Last Updated
-      },
-      didDrawPage: (data) => {
-        // Add footer with page number
-        doc.setFontSize(8);
-        doc.setTextColor(150, 150, 150);
-        doc.text(
-          `Page ${data.pageNumber} of ${doc.internal.getNumberOfPages()}`,
-          doc.internal.pageSize.width - 30,
-          doc.internal.pageSize.height - 10
-        );
-        
-        // Add total count
-        doc.text(
-          `Total Herbs: ${herbsToExport.length}`,
-          14,
-          doc.internal.pageSize.height - 10
-        );
-      }
-    });
-
-    // Save PDF
-    const fileName = `herbisense_herbs_${exportType}_${new Date().toISOString().split('T')[0]}.pdf`;
-    doc.save(fileName);
-    setIsExportMenuOpen(false);
-  };
-
-  const handleExportDetailedPDF = (herb) => {
-    if (!herb) return;
-    
-    const doc = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: 'a4'
-    });
-
-    // Add header
-    doc.setFillColor(16, 185, 129);
-    doc.rect(0, 0, doc.internal.pageSize.width, 30, 'F');
-    
-    doc.setFontSize(24);
-    doc.setTextColor(255, 255, 255);
-    doc.text(herb.commonName, 20, 18);
-    
-    doc.setFontSize(12);
-    doc.setTextColor(255, 255, 255);
-    doc.text(herb.scientificName, 20, 25);
-
-    // Add content
-    let yPosition = 45;
-    const lineHeight = 8;
-    const leftMargin = 20;
-    const rightColumn = 110;
-
-    // Helper function to add section
-    const addSection = (title, content, x, y, isBold = true) => {
-      doc.setFontSize(11);
-      if (isBold) {
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(16, 185, 129);
-      } else {
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(80, 80, 80);
-      }
-      doc.text(title, x, y);
-      
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(10);
-      doc.setTextColor(60, 60, 60);
-      
-      const lines = doc.splitTextToSize(content || 'N/A', 80);
-      doc.text(lines, x, y + 5);
-      
-      return y + 15 + (lines.length * 4);
-    };
-
-    // Basic Information
-    yPosition = addSection('Basic Information', '', leftMargin, yPosition);
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(60, 60, 60);
-    
-    doc.text(`Parts Used: ${herb.partsUsed?.replace('_', ' ') || 'N/A'}`, leftMargin + 5, yPosition);
-    doc.text(`Region: ${herb.indigenousRegion || 'N/A'}`, leftMargin + 5, yPosition + 5);
-    doc.text(`Status: ${herb.status?.charAt(0).toUpperCase() + herb.status?.slice(1) || 'N/A'}`, leftMargin + 5, yPosition + 10);
-    doc.text(`Added By: ${herb.addedBy || 'System'}`, leftMargin + 5, yPosition + 15);
-    yPosition += 25;
-
-    // Description
-    yPosition = addSection('Description', herb.description || 'No description provided', leftMargin, yPosition);
-    yPosition += 10;
-
-    // Medicinal Uses
-    if (herb.medicinalUses) {
-      yPosition = addSection('Medicinal Uses', herb.medicinalUses, leftMargin, yPosition);
-      yPosition += 10;
-    }
-
-    // Contraindications
-    if (herb.contraindications) {
-      yPosition = addSection('Contraindications', herb.contraindications, leftMargin, yPosition);
-      yPosition += 10;
-    }
-
-    // Right Column - Categories and Skin Conditions
-    let rightY = 45;
-    
-    // Categories
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(16, 185, 129);
-    doc.text('Categories', rightColumn, rightY);
-    rightY += 5;
-    
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(60, 60, 60);
-    
-    if (herb.categories?.length > 0) {
-      herb.categories.forEach((cat, index) => {
-        doc.text(`• ${cat.charAt(0).toUpperCase() + cat.slice(1)}`, rightColumn + 5, rightY + (index * 5));
-      });
-      rightY += herb.categories.length * 5 + 10;
-    } else {
-      doc.text('No categories', rightColumn + 5, rightY);
-      rightY += 15;
-    }
-
-    // Skin Conditions
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(16, 185, 129);
-    doc.text('Skin Conditions Treated', rightColumn, rightY);
-    rightY += 5;
-    
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(60, 60, 60);
-    
-    if (herb.skinConditions?.length > 0) {
-      herb.skinConditions.forEach((condition, index) => {
-        const formattedCondition = condition.split('-').map(word => 
-          word.charAt(0).toUpperCase() + word.slice(1)
-        ).join(' ');
-        doc.text(`• ${formattedCondition}`, rightColumn + 5, rightY + (index * 5));
-      });
-      rightY += herb.skinConditions.length * 5 + 10;
-    } else {
-      doc.text('No skin conditions', rightColumn + 5, rightY);
-      rightY += 15;
-    }
-
-    // Dosage
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(16, 185, 129);
-    doc.text('Dosage', rightColumn, rightY);
-    rightY += 5;
-    
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(60, 60, 60);
-    doc.text(herb.dosage || 'No dosage information', rightColumn + 5, rightY);
-    rightY += 15;
-
-    // Preparation
-    if (herb.preparation) {
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(16, 185, 129);
-      doc.text('Preparation', rightColumn, rightY);
-      rightY += 5;
-      
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(60, 60, 60);
-      const prepLines = doc.splitTextToSize(herb.preparation, 80);
-      doc.text(prepLines, rightColumn + 5, rightY);
-    }
-
-    // Footer
-    doc.setFontSize(8);
-    doc.setTextColor(150, 150, 150);
-    const footerText = `Generated from HerbiSense on ${dateStr} • Herb ID: ${herb.id}`;
-    doc.text(footerText, leftMargin, doc.internal.pageSize.height - 10);
-
-    // Save PDF
-    const fileName = `herbisense_${herb.commonName.toLowerCase().replace(/\s+/g, '_')}_details.pdf`;
-    doc.save(fileName);
-  };
-
   const handleExportCSV = () => {
     const headers = [
-      'ID',
-      'Common Name',
-      'Scientific Name',
-      'Parts Used',
-      'Indigenous Region',
-      'Status',
-      'Description',
-      'Medicinal Uses',
-      'Contraindications',
-      'Dosage',
-      'Preparation',
-      'Storage Instructions',
-      'Categories',
-      'Skin Conditions',
-      'Created At',
-      'Added By'
+      'ID', 'Name', 'Scientific Name', 'Description', 'Preparation',
+      'Safety Warning', 'Status', 'Image URL', 'Created At', 'Updated At'
     ].join(',');
 
     const rows = herbs.map(herb => [
-      herb.id,
-      `"${herb.commonName}"`,
-      `"${herb.scientificName}"`,
-      herb.partsUsed,
-      `"${herb.indigenousRegion}"`,
-      herb.status,
-      `"${herb.description?.replace(/"/g, '""') || ''}"`,
-      `"${herb.medicinalUses?.replace(/"/g, '""') || ''}"`,
-      `"${herb.contraindications?.replace(/"/g, '""') || ''}"`,
-      `"${herb.dosage?.replace(/"/g, '""') || ''}"`,
-      `"${herb.preparation?.replace(/"/g, '""') || ''}"`,
-      `"${herb.storageInstructions?.replace(/"/g, '""') || ''}"`,
-      `"${herb.categories?.join('; ') || ''}"`,
-      `"${herb.skinConditions?.join('; ') || ''}"`,
-      new Date(herb.createdAt).toLocaleDateString(),
-      herb.addedBy || 'System'
+      herb.id || '',
+      `"${(herb.name || '').replace(/"/g, '""')}"`,
+      `"${(herb.scientificName || '').replace(/"/g, '""')}"`,
+      `"${(herb.description || '').replace(/"/g, '""')}"`,
+      `"${(herb.preparation || '').replace(/"/g, '""')}"`,
+      `"${(herb.safetyWarning || '').replace(/"/g, '""')}"`,
+      herb.status || '',
+      herb.imageUrl || '',
+      herb.createdAt ? new Date(herb.createdAt).toLocaleDateString() : '',
+      herb.updatedAt ? new Date(herb.updatedAt).toLocaleDateString() : ''
     ].join(','));
 
     const csv = [headers, ...rows].join('\n');
@@ -640,6 +345,43 @@ const HerbsManagement = () => {
     setIsExportMenuOpen(false);
   };
 
+  useEffect(() => {
+    if (herbs.length > 0) {
+      console.log('🌿 Current herbs state:', {
+        total: herbs.length,
+        published: herbs.filter(h => h.status === 'published').length,
+        pending: herbs.filter(h => h.status === 'pending').length,
+        withImages: herbs.filter(h => h.imageUrl).length
+      });
+    }
+  }, [herbs]);
+
+  if (loading && herbs.length === 0) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading herbs...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center bg-red-50 p-8 rounded-xl border border-red-200">
+          <ExclamationTriangleIcon className="h-12 w-12 text-red-500 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-red-800 mb-2">Error Loading Herbs</h3>
+          <p className="text-red-600 mb-4">{error}</p>
+          <Button variant="primary" onClick={handleRefresh}>
+            Try Again
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="dashboard-container space-y-6">
       {/* Header */}
@@ -648,18 +390,30 @@ const HerbsManagement = () => {
           <h1 className="text-2xl font-bold text-gray-900">Herbs Management</h1>
           <p className="mt-1 text-gray-600">
             {filteredHerbs.length} {filteredHerbs.length === 1 ? 'herb' : 'herbs'} found • {herbs.length} total
+            <span className="ml-2 text-sm">
+              <span className="text-emerald-600 font-medium">{herbs.filter(h => h.status === 'published').length} published</span>
+              {' · '}
+              <span className="text-amber-600 font-medium">{herbs.filter(h => h.status === 'pending').length} pending</span>
+              {'  '}
+              {/* <span className="text-blue-600 font-medium">{herbs.filter(h => h.imageUrl).length} with images</span> */}
+            </span>
+            {!isAdmin && (
+              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">
+                <ShieldCheckIcon className="h-3 w-3 mr-1" />
+                Creator Mode
+              </span>
+            )}
           </p>
         </div>
         <div className="mt-4 sm:mt-0 flex items-center space-x-3">
-          {/*  */}
-          <Button 
+          {/* <Button 
             variant="outline" 
             icon={ArrowPathIcon}
-            onClick={handleResetData}
-            title="Reset to initial data"
+            onClick={handleRefresh}
+            title="Refresh herbs"
           >
-            Reset
-          </Button>
+            Refresh
+          </Button> */}
           
           {/* Export Dropdown */}
           <div className="relative">
@@ -700,30 +454,6 @@ const HerbsManagement = () => {
                       <p className="text-xs text-gray-500">Export as spreadsheet format</p>
                     </div>
                   </button>
-                  
-                  <div className="border-t border-gray-200 my-2"></div>
-                  
-                  {/* <button
-                    onClick={() => handleExportPDF('all')}
-                    className="w-full flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-emerald-50 rounded-lg transition-colors"
-                  >
-                    <DocumentArrowDownIcon className="h-5 w-5 mr-2 text-emerald-600" />
-                    <div className="text-left">
-                      <span className="font-medium"></span>
-                      <p className="text-xs text-gray-500"></p>
-                    </div>
-                  </button> */}
-                  
-                  {/* <button
-                    onClick={() => handleExportPDF('filtered')}
-                    className="w-full flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-emerald-50 rounded-lg transition-colors"
-                  >
-                    <DocumentArrowDownIcon className="h-5 w-5 mr-2 text-emerald-600" />
-                    <div className="text-left">
-                      <span className="font-medium"></span>
-                      <p className="text-xs text-gray-500">Only currently filtered herbs</p>
-                    </div>
-                  </button> */}
                 </div>
               </div>
             )}
@@ -743,7 +473,7 @@ const HerbsManagement = () => {
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="flex-1">
           <SearchBar
-            placeholder="Search herbs by name, scientific name, region, or category..."
+            placeholder="Search herbs by local name or scientific name..."
             value={searchQuery}
             onChange={setSearchQuery}
           />
@@ -794,7 +524,7 @@ const HerbsManagement = () => {
       </div>
 
       {/* Empty State */}
-      {filteredHerbs.length === 0 && (
+      {filteredHerbs.length === 0 && !loading && (
         <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
           <div className="flex flex-col items-center">
             <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
@@ -815,39 +545,125 @@ const HerbsManagement = () => {
         </div>
       )}
 
-      {/* Herbs Grid/List */}
+      {/* Herbs Display */}
       {filteredHerbs.length > 0 && (
-        viewMode === 'grid' ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredHerbs.map((herb) => (
-              <HerbCard 
-                key={herb.id} 
-                herb={herb} 
-                viewMode={viewMode}
-                onEdit={handleEditClick}
-                onView={handleViewHerb}
-                onDelete={handleDeleteClick}
-                onDuplicate={handleDuplicateHerb}
-                onExportPDF={handleExportDetailedPDF}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {filteredHerbs.map((herb) => (
-              <HerbCard 
-                key={herb.id} 
-                herb={herb} 
-                viewMode={viewMode}
-                onEdit={handleEditClick}
-                onView={handleViewHerb}
-                onDelete={handleDeleteClick}
-                onDuplicate={handleDuplicateHerb}
-                onExportPDF={handleExportDetailedPDF}
-              />
-            ))}
-          </div>
-        )
+        <>
+          {statusFilter === 'all' ? (
+            <div className="space-y-8">
+              {pendingHerbs.length > 0 && (
+                <div>
+                  <div className="flex items-center mb-4">
+                    <ClockIcon className="h-5 w-5 text-amber-500 mr-2" />
+                    <h2 className="text-lg font-semibold text-gray-900">Pending Review ({pendingHerbs.length})</h2>
+                  </div>
+                  {viewMode === 'grid' ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                      {pendingHerbs.map((herb) => (
+                        <HerbCard 
+                          key={herb.id} 
+                          herb={herb} 
+                          viewMode={viewMode}
+                          onEdit={handleEditClick}
+                          onView={handleViewHerb}
+                          onDelete={handleDeleteClick}
+                          onDuplicate={handleDuplicateHerb}
+                          isAdmin={isAdmin}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {pendingHerbs.map((herb) => (
+                        <HerbCard 
+                          key={herb.id} 
+                          herb={herb} 
+                          viewMode={viewMode}
+                          onEdit={handleEditClick}
+                          onView={handleViewHerb}
+                          onDelete={handleDeleteClick}
+                          onDuplicate={handleDuplicateHerb}
+                          isAdmin={isAdmin}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {publishedHerbs.length > 0 && (
+                <div>
+                  <div className="flex items-center mb-4">
+                    <CheckCircleIcon className="h-5 w-5 text-emerald-500 mr-2" />
+                    <h2 className="text-lg font-semibold text-gray-900">Published ({publishedHerbs.length})</h2>
+                  </div>
+                  {viewMode === 'grid' ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                      {publishedHerbs.map((herb) => (
+                        <HerbCard 
+                          key={herb.id} 
+                          herb={herb} 
+                          viewMode={viewMode}
+                          onEdit={handleEditClick}
+                          onView={handleViewHerb}
+                          onDelete={handleDeleteClick}
+                          onDuplicate={handleDuplicateHerb}
+                          isAdmin={isAdmin}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {publishedHerbs.map((herb) => (
+                        <HerbCard 
+                          key={herb.id} 
+                          herb={herb} 
+                          viewMode={viewMode}
+                          onEdit={handleEditClick}
+                          onView={handleViewHerb}
+                          onDelete={handleDeleteClick}
+                          onDuplicate={handleDuplicateHerb}
+                          isAdmin={isAdmin}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : (
+            viewMode === 'grid' ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {filteredHerbs.map((herb) => (
+                  <HerbCard 
+                    key={herb.id} 
+                    herb={herb} 
+                    viewMode={viewMode}
+                    onEdit={handleEditClick}
+                    onView={handleViewHerb}
+                    onDelete={handleDeleteClick}
+                    onDuplicate={handleDuplicateHerb}
+                    isAdmin={isAdmin}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {filteredHerbs.map((herb) => (
+                  <HerbCard 
+                    key={herb.id} 
+                    herb={herb} 
+                    viewMode={viewMode}
+                    onEdit={handleEditClick}
+                    onView={handleViewHerb}
+                    onDelete={handleDeleteClick}
+                    onDuplicate={handleDuplicateHerb}
+                    isAdmin={isAdmin}
+                  />
+                ))}
+              </div>
+            )
+          )}
+        </>
       )}
 
       {/* Modals */}
@@ -883,11 +699,10 @@ const HerbsManagement = () => {
           setSelectedHerb(null);
         }}
         onConfirm={handleDeleteConfirm}
-        itemName={selectedHerb?.commonName || 'this herb'}
+        itemName={selectedHerb?.name || 'this herb'}
         itemType="herb"
       />
 
-      {/* Global styles for blur effect */}
       <style jsx global>{`
         .dashboard-blur {
           filter: blur(8px);

@@ -1,720 +1,2214 @@
-// src/components/herbs/AddHerbModal.jsx
-import { useState, useEffect } from 'react';
-import ReactDOM from 'react-dom';
-import Button from '../common/Button';
-import Input from '../common/Input';
-import { 
-  Thermometer, 
-  Droplets, 
-  Shield, 
-  Zap, 
-  Sparkles, 
-  Heart, 
-  Pill, 
-  Flower2, 
-  Scissors,
-  Search,
-  X,
-  Check,
-  Leaf,
-  Package,
-  AlertCircle
-} from 'lucide-react';
+// // src/components/herbs/AddHerbModal.jsx (ADMIN - WITH CONDITION TRANSLATIONS)
+// import { useState, useEffect } from "react";
+// import ReactDOM from "react-dom";
+// import Button from "../common/Button";
+// import Input from "../common/Input";
+// import { Leaf, X, Plus, Trash2, Sparkles, Globe, Languages, BookOpen } from "lucide-react";
+// import { herbApi, getApiBaseUrl } from "../../services/herbApi";
+// import axios from "axios";
+
+// const AddHerbModal = ({ isOpen, onClose, onSave }) => {
+//   const [formData, setFormData] = useState({
+//     name: "",
+//     scientificName: "",
+//     description: "",
+//     preparation: "",
+//     safetyWarning: "",
+//     source: "",
+//     conditionIds: [],
+//     image: null,
+//     imagePreview: null
+//   });
+
+//   // Translation states - Only Amharic and Oromo (English is default)
+//   const [translations, setTranslations] = useState({
+//     amharic: {
+//       translated_name: "",
+//       translated_uses: "",
+//       translated_preparation: "",
+//       translated_safety: "",
+//       source: ""
+//     },
+//     oromo: {
+//       translated_name: "",
+//       translated_uses: "",
+//       translated_preparation: "",
+//       translated_safety: "",
+//       source: ""
+//     }
+//   });
+//   const [activeLanguage, setActiveLanguage] = useState("amharic");
+
+//   // Condition translation states
+//   const [conditionTranslations, setConditionTranslations] = useState({});
+//   const [activeConditionTranslationLang, setActiveConditionTranslationLang] = useState("amharic");
+
+//   const [conditions, setConditions] = useState([]);
+//   const [isSubmitting, setIsSubmitting] = useState(false);
+//   const [errors, setErrors] = useState({});
+//   const [apiError, setApiError] = useState("");
+//   const [isLoadingConditions, setIsLoadingConditions] = useState(false);
+//   const [isUploadingImage, setIsUploadingImage] = useState(false);
+//   const [uploadProgress, setUploadProgress] = useState(0);
+//   const [selectedConditionId, setSelectedConditionId] = useState("");
+  
+//   // New condition creation states
+//   const [showNewConditionForm, setShowNewConditionForm] = useState(false);
+//   const [newCondition, setNewCondition] = useState({
+//     name: '',
+//     description: ''
+//   });
+//   const [isCreatingCondition, setIsCreatingCondition] = useState(false);
+
+//   const API_BASE_URL = getApiBaseUrl();
+
+//   // Language options - Only Amharic and Oromo
+//   const languages = [
+//     { code: "amharic", label: "አማርኛ (Amharic)", value: "AM" },
+//     { code: "oromo", label: "Oromiffa (Oromo)", value: "OM" }
+//   ];
+
+//   // Fetch conditions when modal opens
+//   useEffect(() => {
+//     if (isOpen) {
+//       fetchConditions();
+//     }
+//   }, [isOpen]);
+
+//   useEffect(() => {
+//     if (!isOpen) {
+//       handleReset();
+//     }
+//   }, [isOpen]);
+
+//   const fetchConditions = async () => {
+//     setIsLoadingConditions(true);
+//     setApiError("");
+    
+//     try {
+//       const token = localStorage.getItem("token");
+//       console.log('Fetching conditions from:', `${API_BASE_URL}/conditions`);
+      
+//       const response = await axios.get(`${API_BASE_URL}/conditions`, {
+//         headers: {
+//           Authorization: `Bearer ${token}`,
+//           'Content-Type': 'application/json',
+//         },
+//       });
+      
+//       console.log('API Response:', response.data);
+      
+//       let conditionsList = [];
+//       if (response.data && response.data.success && Array.isArray(response.data.data)) {
+//         conditionsList = response.data.data;
+//       } else if (Array.isArray(response.data)) {
+//         conditionsList = response.data;
+//       }
+      
+//       console.log('Conditions loaded:', conditionsList);
+//       setConditions(conditionsList);
+      
+//       // Initialize condition translations for existing conditions
+//       const initialConditionTranslations = {};
+//       conditionsList.forEach(condition => {
+//         initialConditionTranslations[condition.id] = {
+//           amharic: { translated_name: "", translated_description: "" },
+//           oromo: { translated_name: "", translated_description: "" }
+//         };
+//       });
+//       setConditionTranslations(initialConditionTranslations);
+      
+//       if (conditionsList.length === 0) {
+//         setApiError("No conditions available. Please add a condition first.");
+//       }
+//     } catch (error) {
+//       console.error("Failed to fetch conditions:", error);
+//       setApiError("Failed to load conditions. Please refresh and try again.");
+//     } finally {
+//       setIsLoadingConditions(false);
+//     }
+//   };
+
+//   // Delete condition from database - DELETES ONLY THE SELECTED CONDITION
+//   const handleDeleteCondition = async (conditionId, conditionName) => {
+//     // Safety check: ensure we have a valid ID
+//     if (!conditionId) {
+//       alert("❌ Error: Invalid condition ID");
+//       return;
+//     }
+    
+//     // Confirm before deleting
+//     const confirmDelete = window.confirm(
+//       `⚠️ Are you sure you want to delete the condition "${conditionName}"?\n\n` +
+//       `Condition ID: ${conditionId}\n\n` +
+//       `This will permanently remove it from the database.\n` +
+//       `Any herbs associated with this condition will lose this connection.\n\n` +
+//       `This action cannot be undone!`
+//     );
+    
+//     if (!confirmDelete) return;
+    
+//     try {
+//       const token = localStorage.getItem('token');
+//       const deleteUrl = `${API_BASE_URL}/conditions/${conditionId}`;
+//       console.log(`🗑️ Deleting condition at: ${deleteUrl}`);
+      
+//       const response = await axios.delete(deleteUrl, {
+//         headers: {
+//           'Authorization': `Bearer ${token}`,
+//           'Content-Type': 'application/json'
+//         }
+//       });
+      
+//       console.log('Delete response:', response.data);
+      
+//       if (response.data && response.data.success) {
+//         alert(`✅ Condition "${conditionName}" deleted successfully!`);
+        
+//         // Remove ONLY the deleted condition from local state
+//         setConditions(prevConditions => 
+//           prevConditions.filter(c => c.id !== conditionId)
+//         );
+        
+//         // Remove this condition from selected condition IDs if it was selected
+//         if (formData.conditionIds.includes(conditionId)) {
+//           setFormData(prev => ({
+//             ...prev,
+//             conditionIds: prev.conditionIds.filter(id => id !== conditionId)
+//           }));
+//         }
+        
+//         // Remove translations for ONLY this condition
+//         setConditionTranslations(prev => {
+//           const newTranslations = { ...prev };
+//           delete newTranslations[conditionId];
+//           return newTranslations;
+//         });
+        
+//         // Reset selected condition ID if it was the deleted one
+//         if (selectedConditionId === conditionId) {
+//           setSelectedConditionId("");
+//         }
+//       } else {
+//         throw new Error(response.data?.message || 'Delete failed');
+//       }
+//     } catch (error) {
+//       console.error('Failed to delete condition:', error);
+//       const errorMsg = error.response?.data?.message || error.message || 'Failed to delete condition';
+//       alert(`❌ Error: ${errorMsg}`);
+//     }
+//   };
+
+//   // Create new condition
+//   const handleCreateCondition = async () => {
+//     if (!newCondition.name.trim()) {
+//       setErrors(prev => ({ ...prev, newCondition: "Condition name is required" }));
+//       return;
+//     }
+
+//     setIsCreatingCondition(true);
+//     try {
+//       const token = localStorage.getItem('token');
+//       const response = await axios.post(`${API_BASE_URL}/conditions`, {
+//         name: newCondition.name.trim(),
+//         description: newCondition.description.trim() || ""
+//       }, {
+//         headers: {
+//           'Authorization': `Bearer ${token}`,
+//           'Content-Type': 'application/json'
+//         }
+//       });
+
+//       if (response.data && response.data.success && response.data.data) {
+//         const createdCondition = response.data.data;
+//         console.log('✅ New condition created:', createdCondition);
+        
+//         await fetchConditions();
+//         setSelectedConditionId(createdCondition.id.toString());
+//         setShowNewConditionForm(false);
+//         setNewCondition({ name: '', description: '' });
+//         setErrors(prev => ({ ...prev, newCondition: null }));
+//         alert(`✅ Condition "${createdCondition.name}" created successfully!`);
+//       }
+//     } catch (error) {
+//       console.error('Failed to create condition:', error);
+//       setErrors(prev => ({ 
+//         ...prev, 
+//         newCondition: error.response?.data?.message || "Failed to create condition" 
+//       }));
+//     } finally {
+//       setIsCreatingCondition(false);
+//     }
+//   };
+
+//   const handleChange = (field, value) => {
+//     setFormData((prev) => ({
+//       ...prev,
+//       [field]: value,
+//     }));
+
+//     if (errors[field]) {
+//       setErrors((prev) => ({ ...prev, [field]: null }));
+//     }
+
+//     if (apiError) setApiError("");
+//   };
+
+//   // Handle translation changes
+//   const handleTranslationChange = (language, field, value) => {
+//     setTranslations(prev => ({
+//       ...prev,
+//       [language]: {
+//         ...prev[language],
+//         [field]: value
+//       }
+//     }));
+//   };
+
+//   // Handle condition translation changes
+//   const handleConditionTranslationChange = (conditionId, language, field, value) => {
+//     setConditionTranslations(prev => ({
+//       ...prev,
+//       [conditionId]: {
+//         ...prev[conditionId],
+//         [language]: {
+//           ...prev[conditionId]?.[language],
+//           [field]: value
+//         }
+//       }
+//     }));
+//   };
+
+//   // Add condition to the array
+//   const handleAddCondition = () => {
+//     if (!selectedConditionId) {
+//       setErrors(prev => ({ ...prev, conditionIds: "Please select a condition to add" }));
+//       return;
+//     }
+    
+//     // Use string IDs for consistency
+//     if (formData.conditionIds.includes(selectedConditionId)) {
+//       setErrors(prev => ({ ...prev, conditionIds: "This condition is already added" }));
+//       return;
+//     }
+//     setFormData(prev => ({
+//       ...prev,
+//       conditionIds: [...prev.conditionIds, selectedConditionId]
+//     }));
+//     setSelectedConditionId("");
+//     setErrors(prev => ({ ...prev, conditionIds: null }));
+//   };
+
+//   // Remove condition from the array (only from this herb, not from database)
+//   const handleRemoveCondition = (conditionIdToRemove) => {
+//     setFormData(prev => ({
+//       ...prev,
+//       conditionIds: prev.conditionIds.filter(id => id !== conditionIdToRemove)
+//     }));
+//   };
+
+//   const handleImageChange = (e) => {
+//     const file = e.target.files[0];
+//     if (file) {
+//       if (!file.type.startsWith('image/')) {
+//         setErrors(prev => ({ ...prev, image: "Please select a valid image file" }));
+//         return;
+//       }
+      
+//       if (file.size > 5 * 1024 * 1024) {
+//         setErrors(prev => ({ ...prev, image: "Image size should be less than 5MB" }));
+//         return;
+//       }
+      
+//       setFormData(prev => ({
+//         ...prev,
+//         image: file,
+//         imagePreview: URL.createObjectURL(file)
+//       }));
+      
+//       if (errors.image) {
+//         setErrors(prev => ({ ...prev, image: null }));
+//       }
+//     }
+//   };
+
+//   const validateForm = () => {
+//     const newErrors = {};
+
+//     if (!formData.name.trim()) newErrors.name = "Name is required";
+//     if (!formData.scientificName.trim())
+//       newErrors.scientificName = "Scientific name is required";
+//     if (!formData.description.trim())
+//       newErrors.description = "Description is required";
+//     if (!formData.safetyWarning.trim())
+//       newErrors.safetyWarning = "Safety warning is required";
+//     if (formData.conditionIds.length === 0)
+//       newErrors.conditionIds = "Please select at least one condition";
+//     if (!formData.image)
+//       newErrors.image = "Please select an image for the herb";
+
+//     setErrors(newErrors);
+//     return Object.keys(newErrors).length === 0;
+//   };
+
+//   const uploadHerbImage = async (herbId, imageFile) => {
+//     try {
+//       const token = localStorage.getItem('token');
+//       const imageFormData = new FormData();
+//       imageFormData.append('herbId', herbId);
+//       imageFormData.append('image', imageFile);
+      
+//       const response = await axios.post(`${API_BASE_URL}/uploads`, imageFormData, {
+//         headers: {
+//           'Authorization': `Bearer ${token}`,
+//           'Content-Type': 'multipart/form-data'
+//         }
+//       });
+      
+//       if (response.data?.success && response.data?.data?.image_url) {
+//         return response.data.data.image_url;
+//       }
+//       return null;
+//     } catch (error) {
+//       console.error('Image upload failed:', error);
+//       throw error;
+//     }
+//   };
+
+//   // Save translations to API - Only for Amharic and Oromo
+//   const saveTranslations = async (herbId) => {
+//     const token = localStorage.getItem('token');
+//     const translationPromises = [];
+
+//     // Save Amharic translation
+//     if (translations.amharic.translated_name || translations.amharic.translated_uses || 
+//         translations.amharic.translated_preparation || translations.amharic.translated_safety) {
+//       translationPromises.push(
+//         axios.post(`${API_BASE_URL}/translations`, {
+//           herbId: herbId,
+//           language: "AM",
+//           translated_name: translations.amharic.translated_name,
+//           translated_uses: translations.amharic.translated_uses,
+//           translated_preparation: translations.amharic.translated_preparation,
+//           translated_safety: translations.amharic.translated_safety,
+//           source: translations.amharic.source || formData.source
+//         }, {
+//           headers: { Authorization: `Bearer ${token}` }
+//         })
+//       );
+//     }
+
+//     // Save Oromo translation
+//     if (translations.oromo.translated_name || translations.oromo.translated_uses || 
+//         translations.oromo.translated_preparation || translations.oromo.translated_safety) {
+//       translationPromises.push(
+//         axios.post(`${API_BASE_URL}/translations`, {
+//           herbId: herbId,
+//           language: "OM",
+//           translated_name: translations.oromo.translated_name,
+//           translated_uses: translations.oromo.translated_uses,
+//           translated_preparation: translations.oromo.translated_preparation,
+//           translated_safety: translations.oromo.translated_safety,
+//           source: translations.oromo.source || formData.source
+//         }, {
+//           headers: { Authorization: `Bearer ${token}` }
+//         })
+//       );
+//     }
+
+//     if (translationPromises.length > 0) {
+//       await Promise.all(translationPromises);
+//       console.log(`✅ Saved ${translationPromises.length} herb translations`);
+//     }
+//   };
+
+//   // Save condition translations
+//   const saveConditionTranslations = async () => {
+//     const token = localStorage.getItem('token');
+//     const translationPromises = [];
+
+//     for (const [conditionId, translations] of Object.entries(conditionTranslations)) {
+//       // Save Amharic translation
+//       if (translations.amharic?.translated_name || translations.amharic?.translated_description) {
+//         translationPromises.push(
+//           axios.post(`${API_BASE_URL}/condition-translations`, {
+//             conditionId: conditionId,
+//             language: "AM",
+//             translated_name: translations.amharic.translated_name || "",
+//             translated_description: translations.amharic.translated_description || ""
+//           }, {
+//             headers: { Authorization: `Bearer ${token}` }
+//           })
+//         );
+//       }
+
+//       // Save Oromo translation
+//       if (translations.oromo?.translated_name || translations.oromo?.translated_description) {
+//         translationPromises.push(
+//           axios.post(`${API_BASE_URL}/condition-translations`, {
+//             conditionId: conditionId,
+//             language: "OM",
+//             translated_name: translations.oromo.translated_name || "",
+//             translated_description: translations.oromo.translated_description || ""
+//           }, {
+//             headers: { Authorization: `Bearer ${token}` }
+//           })
+//         );
+//       }
+//     }
+
+//     if (translationPromises.length > 0) {
+//       await Promise.all(translationPromises);
+//       console.log(`✅ Saved ${translationPromises.length} condition translations`);
+//     }
+//   };
+
+//   const handleSubmit = async (e) => {
+//     e.preventDefault();
+
+//     if (!validateForm()) return;
+
+//     setIsSubmitting(true);
+//     setApiError("");
+//     setUploadProgress(0);
+
+//     try {
+//       // Use string IDs for all condition handling
+//       const conditionIdsArray = [...formData.conditionIds];
+//       console.log('📋 Selected condition IDs:', conditionIdsArray);
+//       const invalidConditions = conditionIdsArray.filter(id => !conditions.find(c => String(c.id) === String(id)));
+//       if (invalidConditions.length > 0) {
+//         throw new Error(`Invalid condition IDs: ${invalidConditions.join(', ')}`);
+//       }
+//       const selectedConditions = conditions.filter(c => conditionIdsArray.includes(String(c.id)) || conditionIdsArray.includes(c.id));
+//       console.log('📋 Selected conditions details:', selectedConditions.map(c => ({ id: c.id, name: c.name })));
+//       // Create herb
+//       const herbData = {
+//         name: formData.name.trim(),
+//         scientificName: formData.scientificName.trim(),
+//         description: formData.description.trim(),
+//         preparation: formData.preparation.trim() || "No preparation information available",
+//         safetyWarning: formData.safetyWarning.trim(),
+//         source: formData.source.trim() || "",
+//         conditionIds: conditionIdsArray
+//       };
+
+//       console.log('📤 Creating herb with herbApi...');
+//       const createdHerb = await herbApi.createHerb(herbData);
+      
+//       console.log('✅ Herb created:', createdHerb);
+      
+//       let finalHerb = { ...createdHerb };
+//       let imageUrl = null;
+
+//       // Upload image AFTER herb is created
+//       if (formData.image && createdHerb.id) {
+//         setIsUploadingImage(true);
+//         setUploadProgress(30);
+        
+//         try {
+//           console.log(`📸 Uploading image for herb ID: ${createdHerb.id}`);
+//           setUploadProgress(60);
+          
+//           imageUrl = await uploadHerbImage(createdHerb.id, formData.image);
+//           setUploadProgress(100);
+          
+//           if (imageUrl) {
+//             finalHerb.imageUrl = imageUrl;
+//             console.log('✅ Image URL:', imageUrl);
+//           }
+//         } catch (uploadError) {
+//           console.error('❌ Image upload failed:', uploadError);
+//           setApiError(`Herb created but image upload failed: ${uploadError.message}`);
+//         } finally {
+//           setIsUploadingImage(false);
+//         }
+//       }
+
+//       // Save translations
+//       await saveTranslations(createdHerb.id);
+      
+//       // Save condition translations
+//       await saveConditionTranslations();
+
+//       // Add selected conditions info to the herb object
+//       const herbWithConditions = {
+//         ...finalHerb,
+//         conditionIds: conditionIdsArray,
+//         selectedConditions: selectedConditions,
+//         translations: translations,
+//         conditionTranslations: conditionTranslations
+//       };
+
+//       if (onSave) {
+//         console.log('📞 Calling onSave with herb:', herbWithConditions);
+//         onSave(herbWithConditions);
+//       }
+
+//       alert(`✅ Herb "${formData.name}" added successfully with ${conditionIdsArray.length} condition(s) and translations!`);
+//       handleReset();
+//       onClose();
+//     } catch (error) {
+//       console.error('❌ Error in handleSubmit:', error);
+      
+//       if (error.message?.includes('already exists')) {
+//         setErrors(prev => ({
+//           ...prev,
+//           name: "A herb with this name already exists. Please use a different name."
+//         }));
+//       } else {
+//         setApiError(error.message || "Failed to add herb. Please try again.");
+//       }
+//     } finally {
+//       setIsSubmitting(false);
+//       setUploadProgress(0);
+//     }
+//   };
+
+//   const handleReset = () => {
+//     if (formData.imagePreview) {
+//       URL.revokeObjectURL(formData.imagePreview);
+//     }
+    
+//     setFormData({
+//       name: "",
+//       scientificName: "",
+//       description: "",
+//       preparation: "",
+//       safetyWarning: "",
+//       source: "",
+//       conditionIds: [],
+//       image: null,
+//       imagePreview: null
+//     });
+//     setTranslations({
+//       amharic: { translated_name: "", translated_uses: "", translated_preparation: "", translated_safety: "", source: "" },
+//       oromo: { translated_name: "", translated_uses: "", translated_preparation: "", translated_safety: "", source: "" }
+//     });
+//     setConditionTranslations({});
+//     setSelectedConditionId("");
+//     setShowNewConditionForm(false);
+//     setNewCondition({ name: '', description: '' });
+//     setErrors({});
+//     setApiError("");
+//     setUploadProgress(0);
+//   };
+
+//   // Get the list of selected condition objects
+//   const selectedConditionObjects = conditions.filter(c => formData.conditionIds.includes(String(c.id)) || formData.conditionIds.includes(c.id));
+
+//   if (!isOpen) return null;
+
+//   // ✅ FIX: Check if document.body exists before creating portal
+//   const portalTarget = document.body;
+//   if (!portalTarget) return null;
+
+//   const modalContent = (
+//     <div className="fixed inset-0 z-[9999] overflow-y-auto">
+//       <div className="fixed inset-0 bg-black/50" onClick={onClose} />
+
+//       <div className="relative flex min-h-full items-center justify-center p-4">
+//         <div className="relative w-full max-w-4xl rounded-2xl bg-white shadow-2xl">
+//           <div className="bg-gradient-to-r from-emerald-600 to-emerald-500 px-6 py-5 flex justify-between items-center">
+//             <div className="flex items-center space-x-3">
+//               <Leaf className="h-6 w-6 text-white" />
+//               <h3 className="text-xl font-semibold text-white">Add New Herb</h3>
+//             </div>
+//             <button onClick={onClose} className="hover:opacity-80 transition-opacity">
+//               <X className="h-5 w-5 text-white" />
+//             </button>
+//           </div>
+
+//           <form onSubmit={handleSubmit}>
+//             <div className="px-6 py-6 space-y-6 max-h-[70vh] overflow-y-auto">
+//               {isLoadingConditions && (
+//                 <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-600 text-sm">
+//                   Loading conditions...
+//                 </div>
+//               )}
+              
+//               {apiError && (
+//                 <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+//                   <p className="font-medium">Error:</p>
+//                   <p>{apiError}</p>
+//                 </div>
+//               )}
+
+//               {/* Upload Progress Bar */}
+//               {isUploadingImage && (
+//                 <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+//                   <div className="flex items-center justify-between mb-2">
+//                     <span className="text-sm text-blue-700">Uploading image...</span>
+//                     <span className="text-sm text-blue-700">{uploadProgress}%</span>
+//                   </div>
+//                   <div className="w-full bg-blue-200 rounded-full h-2">
+//                     <div 
+//                       className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+//                       style={{ width: `${uploadProgress}%` }}
+//                     />
+//                   </div>
+//                 </div>
+//               )}
+
+//               {/* Image Upload Section */}
+//               <div>
+//                 <label className="block text-sm font-medium text-gray-700">
+//                   Herb Image <span className="text-red-500">*</span>
+//                 </label>
+//                 <div className="mt-1 flex items-center gap-4">
+//                   <input
+//                     type="file"
+//                     accept="image/*"
+//                     onChange={handleImageChange}
+//                     className="w-full border border-gray-300 rounded-lg p-2 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
+//                   />
+//                 </div>
+//                 {errors.image && (
+//                   <p className="text-red-500 text-xs mt-1">{errors.image}</p>
+//                 )}
+                
+//                 {formData.imagePreview && (
+//                   <div className="mt-3">
+//                     <p className="text-xs text-gray-500 mb-2">Preview:</p>
+//                     <img
+//                       src={formData.imagePreview}
+//                       alt="Herb preview"
+//                       className="w-32 h-32 object-cover rounded-lg border border-gray-200"
+//                     />
+//                     <p className="text-xs text-gray-400 mt-1">
+//                       Selected: {formData.image?.name}
+//                     </p>
+//                   </div>
+//                 )}
+//               </div>
+
+//               <div>
+//                 <label className="block text-sm font-medium text-gray-700">
+//                   Name <span className="text-red-500">*</span>
+//                 </label>
+//                 <Input
+//                   value={formData.name}
+//                   onChange={(e) => handleChange("name", e.target.value)}
+//                   placeholder="e.g., Rosemary, Lavender, Chamomile"
+//                   className={errors.name ? 'border-red-500' : ''}
+//                 />
+//                 {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
+//               </div>
+
+//               <div>
+//                 <label className="block text-sm font-medium text-gray-700">
+//                   Scientific Name <span className="text-red-500">*</span>
+//                 </label>
+//                 <Input
+//                   value={formData.scientificName}
+//                   onChange={(e) => handleChange("scientificName", e.target.value)}
+//                   placeholder="e.g., Salvia rosmarinus, Lavandula angustifolia"
+//                   className={errors.scientificName ? 'border-red-500' : ''}
+//                 />
+//                 {errors.scientificName && <p className="text-red-500 text-xs mt-1">{errors.scientificName}</p>}
+//               </div>
+
+//               {/* Multiple Conditions Selection */}
+//               <div>
+//                 <label className="block text-sm font-medium text-gray-700">
+//                   Conditions <span className="text-red-500">*</span>
+//                 </label>
+//                 <p className="text-xs text-gray-500 mb-2">
+//                   Select one or more conditions that this herb treats
+//                 </p>
+                
+//                 {formData.conditionIds.length > 0 && (
+//                   <div className="mb-3 p-3 bg-emerald-50 rounded-lg border border-emerald-200">
+//                     <div className="text-xs font-medium text-emerald-700 mb-2">Selected Conditions:</div>
+//                     <div className="flex flex-wrap gap-2">
+//                       {formData.conditionIds.map(id => {
+//                         const condition = conditions.find(c => c.id === id);
+//                         return (
+//                           <div key={id} className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full text-sm group">
+//                             <span>{condition?.name || `ID: ${id}`}</span>
+//                             <button
+//                               type="button"
+//                               onClick={() => handleRemoveCondition(id)}
+//                               className="hover:bg-emerald-200 rounded-full p-0.5 transition-colors"
+//                               title="Remove condition from herb only (not from database)"
+//                             >
+//                               <X className="h-3 w-3" />
+//                             </button>
+//                           </div>
+//                         );
+//                       })}
+//                     </div>
+//                   </div>
+//                 )}
+                
+//                 <div className="flex gap-2 mb-2">
+//                   <select
+//                     className={`flex-1 border rounded-lg p-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none ${
+//                       errors.conditionIds ? 'border-red-500' : 'border-gray-300'
+//                     }`}
+//                     value={selectedConditionId}
+//                     onChange={(e) => setSelectedConditionId(e.target.value)}
+//                     disabled={isLoadingConditions}
+//                   >
+//                     <option value="">Select a condition to add...</option>
+//                     {conditions
+//                       .filter(condition => !formData.conditionIds.includes(String(condition.id)) && !formData.conditionIds.includes(condition.id))
+//                       .map((condition) => (
+//                         <option key={condition.id} value={condition.id}>
+//                           {condition.name} (ID: {condition.id})
+//                         </option>
+//                       ))}
+//                   </select>
+//                   <Button type="button" onClick={handleAddCondition} variant="outline" className="px-4">
+//                     <Plus className="h-4 w-4" />
+//                   </Button>
+                  
+//                   {/* Delete button for selected condition - DELETES ONLY THE SELECTED ONE */}
+//                   {selectedConditionId && (
+//                     <Button 
+//                       type="button" 
+//                       onClick={() => {
+//                         const condition = conditions.find(c => String(c.id) === String(selectedConditionId));
+//                         if (condition) {
+//                           handleDeleteCondition(condition.id, condition.name);
+//                           setSelectedConditionId('');
+//                         }
+//                       }}
+//                       variant="outline" 
+//                       className="px-4 bg-red-50 border-red-300 hover:bg-red-100 text-red-600"
+//                       title="Permanently delete this condition from database"
+//                     >
+//                       <Trash2 className="h-4 w-4" />
+//                     </Button>
+//                   )}
+//                 </div>
+                
+//                 <button
+//                   type="button"
+//                   onClick={() => setShowNewConditionForm(!showNewConditionForm)}
+//                   className="w-full text-sm text-emerald-600 hover:text-emerald-700 flex items-center justify-center gap-2 py-2 border-t border-gray-200 mt-2 pt-3"
+//                 >
+//                   <Sparkles className="h-4 w-4" />
+//                   {showNewConditionForm ? 'Cancel' : '+ Create New Condition'}
+//                 </button>
+                
+//                 {showNewConditionForm && (
+//                   <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+//                     <h4 className="text-sm font-medium text-blue-800 mb-2 flex items-center gap-2">
+//                       <Sparkles className="h-4 w-4" />
+//                       Create New Condition
+//                     </h4>
+//                     <div className="space-y-3">
+//                       <div>
+//                         <label className="block text-xs font-medium text-gray-700 mb-1">
+//                           Condition Name <span className="text-red-500">*</span>
+//                         </label>
+//                         <input
+//                           type="text"
+//                           value={newCondition.name}
+//                           onChange={(e) => setNewCondition(prev => ({ ...prev, name: e.target.value }))}
+//                           placeholder="e.g., Diabetes, Hypertension, Asthma"
+//                           className="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+//                         />
+//                       </div>
+//                       <div>
+//                         <label className="block text-xs font-medium text-gray-700 mb-1">
+//                           Description (Optional)
+//                         </label>
+//                         <textarea
+//                           value={newCondition.description}
+//                           onChange={(e) => setNewCondition(prev => ({ ...prev, description: e.target.value }))}
+//                           placeholder="Brief description of the condition..."
+//                           rows="2"
+//                           className="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none resize-none"
+//                         />
+//                       </div>
+//                       {errors.newCondition && <p className="text-red-500 text-xs">{errors.newCondition}</p>}
+//                       <div className="flex gap-2">
+//                         <Button type="button" onClick={handleCreateCondition} disabled={isCreatingCondition} className="flex-1 bg-blue-600 hover:bg-blue-700">
+//                           {isCreatingCondition ? "Creating..." : "Create Condition"}
+//                         </Button>
+//                         <Button type="button" onClick={() => { setShowNewConditionForm(false); setNewCondition({ name: '', description: '' }); setErrors(prev => ({ ...prev, newCondition: null })); }} variant="outline" className="flex-1">
+//                           Cancel
+//                         </Button>
+//                       </div>
+//                     </div>
+//                   </div>
+//                 )}
+                
+//                 {errors.conditionIds && <p className="text-red-500 text-xs mt-1">{errors.conditionIds}</p>}
+//                 {conditions.length > 0 && (
+//                   <p className="text-gray-400 text-xs mt-2">
+//                     {conditions.length} condition(s) available. Selected: {formData.conditionIds.length}
+//                   </p>
+//                 )}
+//               </div>
+
+//               {/* Condition Translations Section - Only shown when conditions are selected */}
+//               {selectedConditionObjects.length > 0 && (
+//                 <div className="border-t pt-4">
+//                   <div className="flex items-center gap-2 mb-4">
+//                     <BookOpen className="h-5 w-5 text-emerald-600" />
+//                     <h3 className="text-lg font-semibold text-gray-900">Condition Translations</h3>
+//                     <span className="text-xs text-gray-500">(Optional - Translate condition names for Amharic and Oromo)</span>
+//                   </div>
+
+//                   {/* Language Tabs for Conditions */}
+//                   <div className="flex gap-2 mb-4 border-b">
+//                     {languages.map(lang => (
+//                       <button
+//                         key={lang.code}
+//                         type="button"
+//                         onClick={() => setActiveConditionTranslationLang(lang.code)}
+//                         className={`px-4 py-2 text-sm font-medium transition-colors ${
+//                           activeConditionTranslationLang === lang.code
+//                             ? 'border-b-2 border-emerald-500 text-emerald-600'
+//                             : 'text-gray-500 hover:text-gray-700'
+//                         }`}
+//                       >
+//                         <Languages className="h-4 w-4 inline mr-1" />
+//                         {lang.label}
+//                       </button>
+//                     ))}
+//                   </div>
+
+//                   {/* Condition Translation Forms for each selected condition */}
+//                   <div className="space-y-4">
+//                     {selectedConditionObjects.map(condition => {
+//                       const currentTranslations = conditionTranslations[condition.id]?.[activeConditionTranslationLang] || {};
+//                       return (
+//                         <div key={condition.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+//                           <div className="flex items-center justify-between mb-3">
+//                             <div className="flex items-center gap-2">
+//                               <h4 className="font-medium text-gray-900">{condition.name}</h4>
+//                             </div>
+//                             <button
+//                               type="button"
+//                               onClick={() => handleDeleteCondition(condition.id, condition.name)}
+//                               className="text-red-500 hover:text-red-700 transition-colors p-1 hover:bg-red-50 rounded-lg"
+//                               title="Permanently delete this condition from database"
+//                             >
+//                               <Trash2 className="h-4 w-4" />
+//                             </button>
+//                           </div>
+//                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+//                             <div>
+//                               <label className="block text-xs font-medium text-gray-700 mb-1">
+//                                 Translated Name
+//                               </label>
+//                               <input
+//                                 type="text"
+//                                 value={currentTranslations.translated_name || ""}
+//                                 onChange={(e) => handleConditionTranslationChange(condition.id, activeConditionTranslationLang, 'translated_name', e.target.value)}
+//                                 placeholder={`${condition.name} in ${languages.find(l => l.code === activeConditionTranslationLang)?.label}`}
+//                                 className="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+//                               />
+//                             </div>
+//                             <div>
+//                               <label className="block text-xs font-medium text-gray-700 mb-1">
+//                                 Translated Description
+//                               </label>
+//                               <input
+//                                 type="text"
+//                                 value={currentTranslations.translated_description || ""}
+//                                 onChange={(e) => handleConditionTranslationChange(condition.id, activeConditionTranslationLang, 'translated_description', e.target.value)}
+//                                 placeholder={`Description in ${languages.find(l => l.code === activeConditionTranslationLang)?.label}`}
+//                                 className="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+//                               />
+//                             </div>
+//                           </div>
+//                         </div>
+//                       );
+//                     })}
+//                   </div>
+//                 </div>
+//               )}
+
+//               {/* Main Herb Details */}
+//               <div>
+//                 <label className="block text-sm font-medium text-gray-700">
+//                   Description <span className="text-red-500">*</span>
+//                 </label>
+//                 <textarea
+//                   className={`w-full border rounded-lg p-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none ${errors.description ? 'border-red-500' : 'border-gray-300'}`}
+//                   rows="4"
+//                   value={formData.description}
+//                   onChange={(e) => handleChange("description", e.target.value)}
+//                   placeholder="Detailed description of the herb..."
+//                 />
+//                 {errors.description && <p className="text-red-500 text-xs mt-1">{errors.description}</p>}
+//               </div>
+
+//               <div>
+//                 <label className="block text-sm font-medium text-gray-700">Preparation</label>
+//                 <textarea
+//                   className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+//                   rows="3"
+//                   value={formData.preparation}
+//                   onChange={(e) => handleChange("preparation", e.target.value)}
+//                   placeholder="How to prepare and use the herb..."
+//                 />
+//               </div>
+
+//               <div>
+//                 <label className="block text-sm font-medium text-gray-700">Source</label>
+//                 <textarea
+//                   className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+//                   rows="2"
+//                   value={formData.source}
+//                   onChange={(e) => handleChange("source", e.target.value)}
+//                   placeholder="e.g., WHO monographs on selected medicinal plants, scientific references, traditional knowledge sources..."
+//                 />
+//                 <p className="text-gray-400 text-xs mt-1">Optional: Provide the source or reference for this herb information</p>
+//               </div>
+
+//               <div>
+//                 <label className="block text-sm font-medium text-gray-700">
+//                   Safety Warning <span className="text-red-500">*</span>
+//                 </label>
+//                 <textarea
+//                   className={`w-full border rounded-lg p-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none ${errors.safetyWarning ? 'border-red-500' : 'border-gray-300'}`}
+//                   rows="3"
+//                   value={formData.safetyWarning}
+//                   onChange={(e) => handleChange("safetyWarning", e.target.value)}
+//                   placeholder="Important safety information..."
+//                 />
+//                 {errors.safetyWarning && <p className="text-red-500 text-xs mt-1">{errors.safetyWarning}</p>}
+//               </div>
+
+//               {/* Herb Translations Section */}
+//               <div className="border-t pt-4">
+//                 <div className="flex items-center gap-2 mb-4">
+//                   <Globe className="h-5 w-5 text-emerald-600" />
+//                   <h3 className="text-lg font-semibold text-gray-900">Herb Translations</h3>
+//                   <span className="text-xs text-gray-500">(Optional - Add translations for Amharic and Oromo)</span>
+//                 </div>
+
+//                 {/* Language Tabs */}
+//                 <div className="flex gap-2 mb-4 border-b">
+//                   {languages.map(lang => (
+//                     <button
+//                       key={lang.code}
+//                       type="button"
+//                       onClick={() => setActiveLanguage(lang.code)}
+//                       className={`px-4 py-2 text-sm font-medium transition-colors ${
+//                         activeLanguage === lang.code
+//                           ? 'border-b-2 border-emerald-500 text-emerald-600'
+//                           : 'text-gray-500 hover:text-gray-700'
+//                       }`}
+//                     >
+//                       <Languages className="h-4 w-4 inline mr-1" />
+//                       {lang.label}
+//                     </button>
+//                   ))}
+//                 </div>
+
+//                 {/* Translation Form */}
+//                 <div className="space-y-4">
+//                   <div>
+//                     <label className="block text-sm font-medium text-gray-700">Translated Name</label>
+//                     <input
+//                       type="text"
+//                       value={translations[activeLanguage].translated_name}
+//                       onChange={(e) => handleTranslationChange(activeLanguage, 'translated_name', e.target.value)}
+//                       placeholder={`Enter herb name in ${languages.find(l => l.code === activeLanguage)?.label}`}
+//                       className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+//                     />
+//                   </div>
+//                   <div>
+//                     <label className="block text-sm font-medium text-gray-700">Translated Uses/Description</label>
+//                     <textarea
+//                       value={translations[activeLanguage].translated_uses}
+//                       onChange={(e) => handleTranslationChange(activeLanguage, 'translated_uses', e.target.value)}
+//                       placeholder={`Enter uses/description in ${languages.find(l => l.code === activeLanguage)?.label}`}
+//                       rows="3"
+//                       className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+//                     />
+//                   </div>
+//                   <div>
+//                     <label className="block text-sm font-medium text-gray-700">Translated Preparation</label>
+//                     <textarea
+//                       value={translations[activeLanguage].translated_preparation}
+//                       onChange={(e) => handleTranslationChange(activeLanguage, 'translated_preparation', e.target.value)}
+//                       placeholder={`Enter preparation instructions in ${languages.find(l => l.code === activeLanguage)?.label}`}
+//                       rows="2"
+//                       className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+//                     />
+//                   </div>
+//                   <div>
+//                     <label className="block text-sm font-medium text-gray-700">Translated Safety Warning</label>
+//                     <textarea
+//                       value={translations[activeLanguage].translated_safety}
+//                       onChange={(e) => handleTranslationChange(activeLanguage, 'translated_safety', e.target.value)}
+//                       placeholder={`Enter safety warning in ${languages.find(l => l.code === activeLanguage)?.label}`}
+//                       rows="2"
+//                       className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+//                     />
+//                   </div>
+//                   <div>
+//                     <label className="block text-sm font-medium text-gray-700">Translation Source (Optional)</label>
+//                     <input
+//                       type="text"
+//                       value={translations[activeLanguage].source}
+//                       onChange={(e) => handleTranslationChange(activeLanguage, 'source', e.target.value)}
+//                       placeholder="Source for this translation"
+//                       className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+//                     />
+//                   </div>
+//                 </div>
+//               </div>
+//             </div>
+
+//             <div className="px-6 py-4 border-t flex justify-end space-x-3">
+//               <Button type="button" onClick={onClose} variant="outline" disabled={isSubmitting}>
+//                 Cancel
+//               </Button>
+//               <Button type="submit" disabled={isSubmitting || isLoadingConditions || isUploadingImage}>
+//                 {isSubmitting ? "Creating Herb..." : isUploadingImage ? "Uploading Image..." : "Save Herb"}
+//               </Button>
+//             </div>
+//           </form>
+//         </div>
+//       </div>
+//     </div>
+//   );
+
+//   // ✅ Use createPortal with a safety check
+//   return ReactDOM.createPortal(modalContent, portalTarget);
+// };
+
+// export default AddHerbModal;
+
+
+// src/components/herbs/AddHerbModal.jsx (ADMIN - WITH CONDITION TRANSLATIONS)
+import { useState, useEffect } from "react";
+import ReactDOM from "react-dom";
+import Button from "../common/Button";
+import Input from "../common/Input";
+import { Leaf, X, Plus, Trash2, Sparkles, Globe, Languages, BookOpen } from "lucide-react";
+import { herbApi, getApiBaseUrl } from "../../services/herbApi";
+import axios from "axios";
 
 const AddHerbModal = ({ isOpen, onClose, onSave }) => {
   const [formData, setFormData] = useState({
-    commonName: '',
-    scientificName: '',
-    partsUsed: 'LEAVES',
-    indigenousRegion: '',
-    status: 'draft',
-    description: '',
-    medicinalUses: '',
-    contraindications: '',
-    dosage: '',
-    preparation: '',
-    storageInstructions: '',
-    imageUrl: '',
-    skinConditions: [],
-    categories: []
+    name: "",
+    scientificName: "",
+    description: "",
+    preparation: "",
+    safetyWarning: "",
+    source: "",
+    conditionIds: [],
+    image: null,
+    imagePreview: null
   });
 
+  // Translation states - Only Amharic and Oromo (English is default)
+  const [translations, setTranslations] = useState({
+    amharic: {
+      translated_name: "",
+      translated_uses: "",
+      translated_preparation: "",
+      translated_safety: "",
+      source: ""
+    },
+    oromo: {
+      translated_name: "",
+      translated_uses: "",
+      translated_preparation: "",
+      translated_safety: "",
+      source: ""
+    }
+  });
+  const [activeLanguage, setActiveLanguage] = useState("amharic");
+
+  // Condition translation states
+  const [conditionTranslations, setConditionTranslations] = useState({});
+  const [activeConditionTranslationLang, setActiveConditionTranslationLang] = useState("amharic");
+
+  const [conditions, setConditions] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [activeTab, setActiveTab] = useState('basic');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [categorySearchTerm, setCategorySearchTerm] = useState('');
   const [errors, setErrors] = useState({});
+  const [apiError, setApiError] = useState("");
+  const [isLoadingConditions, setIsLoadingConditions] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [selectedConditionId, setSelectedConditionId] = useState("");
+  
+  // New condition creation states
+  const [showNewConditionForm, setShowNewConditionForm] = useState(false);
+  const [newCondition, setNewCondition] = useState({
+    name: '',
+    description: ''
+  });
+  const [isCreatingCondition, setIsCreatingCondition] = useState(false);
 
-  // Skin conditions from screenshot
-  const skinConditions = [
-    { id: 'inflammation', name: 'Acute inflammation', icon: Thermometer, color: 'text-red-500' },
-    { id: 'downsitis', name: 'Downsitis', icon: Droplets, color: 'text-blue-500' },
-    { id: 'burrus', name: 'Burrus', icon: Shield, color: 'text-amber-500' },
-    { id: 'itching', name: 'Itching', icon: Zap, color: 'text-purple-500' },
-    { id: 'radical', name: 'Radical', icon: Sparkles, color: 'text-yellow-500' },
-    { id: 'dry-skin', name: 'Dry Skin', icon: Droplets, color: 'text-sky-500' },
-    { id: 'infections', name: 'Skin infections', icon: Shield, color: 'text-indigo-500' },
-    { id: 'scars', name: 'Scars', icon: Heart, color: 'text-rose-500' },
-    { id: 'prioritans', name: 'Prioritans', icon: Pill, color: 'text-emerald-500' },
-    { id: 'aging', name: 'Aging Skin', icon: Flower2, color: 'text-pink-500' },
-    { id: 'pain', name: 'Muscle Pain (Topical)', icon: Thermometer, color: 'text-orange-500' },
-    { id: 'circulation', name: 'Circulation', icon: Zap, color: 'text-cyan-500' },
-    { id: 'antiaspiric', name: 'Antiaspiric', icon: Shield, color: 'text-teal-500' },
-    { id: 'neurothimans', name: 'Skin Neurithimans', icon: Pill, color: 'text-violet-500' },
-    { id: 'irritations', name: 'Minor Irritations', icon: Zap, color: 'text-amber-500' },
-    { id: 'hair', name: 'Hair Health', icon: Sparkles, color: 'text-lime-500' },
-    { id: 'cuts', name: 'Minor Cuts', icon: Scissors, color: 'text-gray-500' },
+  const API_BASE_URL = getApiBaseUrl();
+
+  // Language options - Only Amharic and Oromo
+  const languages = [
+    { code: "amharic", label: "አማርኛ (Amharic)", value: "AM" },
+    { code: "oromo", label: "Oromiffa (Oromo)", value: "OM" }
   ];
 
-  // Herb categories from screenshot
-  const herbCategories = [
-    { id: 'spices', name: 'Spices', color: 'bg-amber-100 text-amber-800' },
-    { id: 'aromatic', name: 'Aromatic Herbs', color: 'bg-emerald-100 text-emerald-800' },
-    { id: 'seeds', name: 'Seeds', color: 'bg-amber-200 text-amber-900' },
-    { id: 'medicinal', name: 'Medicinal Plants', color: 'bg-green-100 text-green-800' },
-    { id: 'succulents', name: 'Succulents', color: 'bg-lime-100 text-lime-800' },
-    { id: 'healing', name: 'Healing Plants', color: 'bg-emerald-200 text-emerald-900' },
-    { id: 'resins', name: 'Resins', color: 'bg-orange-100 text-orange-800' },
-    { id: 'vegetables', name: 'Vegetables', color: 'bg-red-100 text-red-800' },
-    { id: 'grains', name: 'Grains', color: 'bg-yellow-100 text-yellow-800' },
-    { id: 'superfoods', name: 'Superfoods', color: 'bg-purple-100 text-purple-800' },
-    { id: 'legumes', name: 'Legumes', color: 'bg-lime-200 text-lime-900' },
-    { id: 'trees', name: 'Trees', color: 'bg-teal-100 text-teal-800' },
-  ];
-
-  const partsUsedOptions = [
-    { value: 'LEAVES', label: 'Leaves', icon: Leaf },
-    { value: 'ROOTS', label: 'Roots', icon: Package },
-    { value: 'BARK', label: 'Bark', icon: Shield },
-    { value: 'FLOWERS', label: 'Flowers', icon: Flower2 },
-    { value: 'SEEDS', label: 'Seeds', icon: Sparkles },
-    { value: 'FRUITS', label: 'Fruits', icon: Heart },
-    { value: 'WHOLE_PLANT', label: 'Whole Plant', icon: Leaf },
-    { value: 'RHIZOME', label: 'Rhizome', icon: Package },
-    { value: 'SHRUB/LEAVES', label: 'Shrub/Leaves', icon: Leaf }
-  ];
-
-  const statusOptions = [
-    { value: 'draft', label: 'Draft', color: 'bg-gray-100 text-gray-800' },
-    { value: 'pending', label: 'Pending Review', color: 'bg-yellow-100 text-yellow-800' },
-    { value: 'published', label: 'Published', color: 'bg-green-100 text-green-800' }
-  ];
-
-  // Add blur effect to background dashboard only when modal is open
+  // Fetch conditions when modal opens
   useEffect(() => {
     if (isOpen) {
-      // Prevent body scrolling
-      document.body.style.overflow = 'hidden';
-      
-      // Add blur to the dashboard container (the parent container of your app content)
-      // This targets the specific container that holds your dashboard, not the entire body
-      const dashboardContent = document.querySelector('.dashboard-container, .app-content, main, #root > div:not(.modal-portal)');
-      if (dashboardContent) {
-        dashboardContent.classList.add('dashboard-blur');
-      }
-    } else {
-      // Remove blur and restore scrolling
-      document.body.style.overflow = 'unset';
-      
-      const dashboardContent = document.querySelector('.dashboard-container, .app-content, main, #root > div:not(.modal-portal)');
-      if (dashboardContent) {
-        dashboardContent.classList.remove('dashboard-blur');
-      }
+      fetchConditions();
     }
-
-    return () => {
-      document.body.style.overflow = 'unset';
-      const dashboardContent = document.querySelector('.dashboard-container, .app-content, main, #root > div:not(.modal-portal)');
-      if (dashboardContent) {
-        dashboardContent.classList.remove('dashboard-blur');
-      }
-    };
   }, [isOpen]);
 
-  const handleChange = (field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: null }));
+  useEffect(() => {
+    if (!isOpen) {
+      handleReset();
+    }
+  }, [isOpen]);
+
+  const fetchConditions = async () => {
+    setIsLoadingConditions(true);
+    setApiError("");
+    
+    try {
+      const token = localStorage.getItem("token");
+      console.log('Fetching conditions from:', `${API_BASE_URL}/conditions`);
+      
+      const response = await axios.get(`${API_BASE_URL}/conditions`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      console.log('API Response:', response.data);
+      
+      let conditionsList = [];
+      if (response.data && response.data.success && Array.isArray(response.data.data)) {
+        conditionsList = response.data.data;
+      } else if (Array.isArray(response.data)) {
+        conditionsList = response.data;
+      }
+      
+      console.log('Conditions loaded:', conditionsList);
+      setConditions(conditionsList);
+      
+      // Initialize condition translations for existing conditions
+      const initialConditionTranslations = {};
+      conditionsList.forEach(condition => {
+        initialConditionTranslations[condition.id] = {
+          amharic: { translated_name: "", translated_description: "" },
+          oromo: { translated_name: "", translated_description: "" }
+        };
+      });
+      setConditionTranslations(initialConditionTranslations);
+      
+      if (conditionsList.length === 0) {
+        setApiError("No conditions available. Please add a condition first.");
+      }
+    } catch (error) {
+      console.error("Failed to fetch conditions:", error);
+      setApiError("Failed to load conditions. Please refresh and try again.");
+    } finally {
+      setIsLoadingConditions(false);
     }
   };
 
-  const handleMultiSelect = (field, itemId) => {
+  // Delete condition from database - DELETES ONLY THE SELECTED CONDITION
+  const handleDeleteCondition = async (conditionId, conditionName) => {
+    // Safety check: ensure we have a valid ID
+    if (!conditionId) {
+      alert("❌ Error: Invalid condition ID");
+      return;
+    }
+    
+    // Confirm before deleting
+    const confirmDelete = window.confirm(
+      `⚠️ Are you sure you want to delete the condition "${conditionName}"?\n\n` +
+      `Condition ID: ${conditionId}\n\n` +
+      `This will permanently remove it from the database.\n` +
+      `Any herbs associated with this condition will lose this connection.\n\n` +
+      `This action cannot be undone!`
+    );
+    
+    if (!confirmDelete) return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      const deleteUrl = `${API_BASE_URL}/conditions/${conditionId}`;
+      console.log(`🗑️ Deleting condition at: ${deleteUrl}`);
+      
+      const response = await axios.delete(deleteUrl, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      console.log('Delete response:', response.data);
+      
+      if (response.data && response.data.success) {
+        alert(`✅ Condition "${conditionName}" deleted successfully!`);
+        
+        // Remove ONLY the deleted condition from local state
+        setConditions(prevConditions => 
+          prevConditions.filter(c => c.id !== conditionId)
+        );
+        
+        // Remove this condition from selected condition IDs if it was selected
+        if (formData.conditionIds.includes(conditionId)) {
+          setFormData(prev => ({
+            ...prev,
+            conditionIds: prev.conditionIds.filter(id => id !== conditionId)
+          }));
+        }
+        
+        // Remove translations for ONLY this condition
+        setConditionTranslations(prev => {
+          const newTranslations = { ...prev };
+          delete newTranslations[conditionId];
+          return newTranslations;
+        });
+        
+        // Reset selected condition ID if it was the deleted one
+        if (selectedConditionId === conditionId) {
+          setSelectedConditionId("");
+        }
+      } else {
+        throw new Error(response.data?.message || 'Delete failed');
+      }
+    } catch (error) {
+      console.error('Failed to delete condition:', error);
+      const errorMsg = error.response?.data?.message || error.message || 'Failed to delete condition';
+      alert(`❌ Error: ${errorMsg}`);
+    }
+  };
+
+  // Create new condition
+  const handleCreateCondition = async () => {
+    if (!newCondition.name.trim()) {
+      setErrors(prev => ({ ...prev, newCondition: "Condition name is required" }));
+      return;
+    }
+
+    setIsCreatingCondition(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.post(`${API_BASE_URL}/conditions`, {
+        name: newCondition.name.trim(),
+        description: newCondition.description.trim() || ""
+      }, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.data && response.data.success && response.data.data) {
+        const createdCondition = response.data.data;
+        console.log('✅ New condition created:', createdCondition);
+        
+        await fetchConditions();
+        setSelectedConditionId(createdCondition.id.toString());
+        setShowNewConditionForm(false);
+        setNewCondition({ name: '', description: '' });
+        setErrors(prev => ({ ...prev, newCondition: null }));
+        alert(`✅ Condition "${createdCondition.name}" created successfully!`);
+      }
+    } catch (error) {
+      console.error('Failed to create condition:', error);
+      setErrors(prev => ({ 
+        ...prev, 
+        newCondition: error.response?.data?.message || "Failed to create condition" 
+      }));
+    } finally {
+      setIsCreatingCondition(false);
+    }
+  };
+
+  const handleChange = (field, value) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+
+    if (errors[field]) {
+      setErrors((prev) => ({ ...prev, [field]: null }));
+    }
+
+    if (apiError) setApiError("");
+  };
+
+  // Handle translation changes
+  const handleTranslationChange = (language, field, value) => {
+    setTranslations(prev => ({
+      ...prev,
+      [language]: {
+        ...prev[language],
+        [field]: value
+      }
+    }));
+  };
+
+  // Handle condition translation changes
+  const handleConditionTranslationChange = (conditionId, language, field, value) => {
+    setConditionTranslations(prev => ({
+      ...prev,
+      [conditionId]: {
+        ...prev[conditionId],
+        [language]: {
+          ...prev[conditionId]?.[language],
+          [field]: value
+        }
+      }
+    }));
+  };
+
+  // Add condition to the array
+  const handleAddCondition = () => {
+    if (!selectedConditionId) {
+      setErrors(prev => ({ ...prev, conditionIds: "Please select a condition to add" }));
+      return;
+    }
+    
+    // Use string IDs for consistency
+    if (formData.conditionIds.includes(selectedConditionId)) {
+      setErrors(prev => ({ ...prev, conditionIds: "This condition is already added" }));
+      return;
+    }
     setFormData(prev => ({
       ...prev,
-      [field]: prev[field].includes(itemId)
-        ? prev[field].filter(id => id !== itemId)
-        : [...prev[field], itemId]
+      conditionIds: [...prev.conditionIds, selectedConditionId]
     }));
+    setSelectedConditionId("");
+    setErrors(prev => ({ ...prev, conditionIds: null }));
+  };
+
+  // Remove condition from the array (only from this herb, not from database)
+  const handleRemoveCondition = (conditionIdToRemove) => {
+    setFormData(prev => ({
+      ...prev,
+      conditionIds: prev.conditionIds.filter(id => id !== conditionIdToRemove)
+    }));
+  };
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        setErrors(prev => ({ ...prev, image: "Please select a valid image file" }));
+        return;
+      }
+      
+      if (file.size > 5 * 1024 * 1024) {
+        setErrors(prev => ({ ...prev, image: "Image size should be less than 5MB" }));
+        return;
+      }
+      
+      setFormData(prev => ({
+        ...prev,
+        image: file,
+        imagePreview: URL.createObjectURL(file)
+      }));
+      
+      if (errors.image) {
+        setErrors(prev => ({ ...prev, image: null }));
+      }
+    }
   };
 
   const validateForm = () => {
     const newErrors = {};
-    
-    if (!formData.commonName.trim()) {
-      newErrors.commonName = 'Common name is required';
-    }
-    if (!formData.scientificName.trim()) {
-      newErrors.scientificName = 'Scientific name is required';
-    }
-    if (!formData.indigenousRegion.trim()) {
-      newErrors.indigenousRegion = 'Indigenous region is required';
-    }
-    if (!formData.description.trim()) {
-      newErrors.description = 'Description is required';
-    }
-    if (formData.categories.length === 0) {
-      newErrors.categories = 'Please select at least one category';
-    }
+
+    if (!formData.name.trim()) newErrors.name = "Name is required";
+    if (!formData.scientificName.trim())
+      newErrors.scientificName = "Scientific name is required";
+    if (!formData.description.trim())
+      newErrors.description = "Description is required";
+    if (!formData.safetyWarning.trim())
+      newErrors.safetyWarning = "Safety warning is required";
+    if (formData.conditionIds.length === 0)
+      newErrors.conditionIds = "Please select at least one condition";
+    if (!formData.image)
+      newErrors.image = "Please select an image for the herb";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (!validateForm()) {
-      if (errors.commonName || errors.scientificName || errors.indigenousRegion || errors.description) {
-        setActiveTab('basic');
-      } else if (errors.categories) {
-        setActiveTab('categories');
+  // Upload image with 501 handling
+  const uploadHerbImage = async (herbId, imageFile) => {
+    try {
+      const token = localStorage.getItem('token');
+      const imageFormData = new FormData();
+      imageFormData.append('herbId', herbId);
+      imageFormData.append('image', imageFile);
+      
+      const response = await axios.post(`${API_BASE_URL}/uploads`, imageFormData, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data'
+        },
+        timeout: 10000
+      });
+      
+      if (response.data?.success && response.data?.data?.image_url) {
+        return response.data.data.image_url;
       }
-      return;
+      return null;
+    } catch (error) {
+      // Handle 501 gracefully - endpoint not implemented
+      if (error.response?.status === 501) {
+        console.warn('⚠️ Image upload endpoint not implemented yet (501). Image will be added later.');
+        return null;
+      }
+      console.error('Image upload failed:', error);
+      throw error;
+    }
+  };
+
+  // Save translations with 501 handling
+  const saveTranslations = async (herbId) => {
+    const token = localStorage.getItem('token');
+    const translationPromises = [];
+
+    // Save Amharic translation
+    if (translations.amharic.translated_name || translations.amharic.translated_uses || 
+        translations.amharic.translated_preparation || translations.amharic.translated_safety) {
+      translationPromises.push(
+        axios.post(`${API_BASE_URL}/translations`, {
+          herbId: herbId,
+          language: "AM",
+          translated_name: translations.amharic.translated_name,
+          translated_uses: translations.amharic.translated_uses,
+          translated_preparation: translations.amharic.translated_preparation,
+          translated_safety: translations.amharic.translated_safety,
+          source: translations.amharic.source || formData.source
+        }, {
+          headers: { Authorization: `Bearer ${token}` }
+        }).catch(error => {
+          if (error.response?.status === 501) {
+            console.warn('⚠️ Translations endpoint not implemented yet (501). Translations will be added later.');
+            return { data: { success: true, message: 'Skipped - endpoint not implemented' } };
+          }
+          throw error;
+        })
+      );
     }
 
+    // Save Oromo translation
+    if (translations.oromo.translated_name || translations.oromo.translated_uses || 
+        translations.oromo.translated_preparation || translations.oromo.translated_safety) {
+      translationPromises.push(
+        axios.post(`${API_BASE_URL}/translations`, {
+          herbId: herbId,
+          language: "OM",
+          translated_name: translations.oromo.translated_name,
+          translated_uses: translations.oromo.translated_uses,
+          translated_preparation: translations.oromo.translated_preparation,
+          translated_safety: translations.oromo.translated_safety,
+          source: translations.oromo.source || formData.source
+        }, {
+          headers: { Authorization: `Bearer ${token}` }
+        }).catch(error => {
+          if (error.response?.status === 501) {
+            console.warn('⚠️ Translations endpoint not implemented yet (501). Translations will be added later.');
+            return { data: { success: true, message: 'Skipped - endpoint not implemented' } };
+          }
+          throw error;
+        })
+      );
+    }
+
+    if (translationPromises.length > 0) {
+      const results = await Promise.allSettled(translationPromises);
+      const succeeded = results.filter(r => r.status === 'fulfilled').length;
+      const failed = results.filter(r => r.status === 'rejected').length;
+      console.log(`✅ Saved ${succeeded} herb translations (${failed} failed - may be unimplemented endpoints)`);
+    }
+  };
+
+  // Save condition translations with 501 handling
+  const saveConditionTranslations = async () => {
+    const token = localStorage.getItem('token');
+    const translationPromises = [];
+
+    for (const [conditionId, translations] of Object.entries(conditionTranslations)) {
+      // Save Amharic translation
+      if (translations.amharic?.translated_name || translations.amharic?.translated_description) {
+        translationPromises.push(
+          axios.post(`${API_BASE_URL}/condition-translations`, {
+            conditionId: conditionId,
+            language: "AM",
+            translated_name: translations.amharic.translated_name || "",
+            translated_description: translations.amharic.translated_description || ""
+          }, {
+            headers: { Authorization: `Bearer ${token}` }
+          }).catch(error => {
+            if (error.response?.status === 501) {
+              console.warn('⚠️ Condition translations endpoint not implemented yet (501)');
+              return { data: { success: true, message: 'Skipped - endpoint not implemented' } };
+            }
+            throw error;
+          })
+        );
+      }
+
+      // Save Oromo translation
+      if (translations.oromo?.translated_name || translations.oromo?.translated_description) {
+        translationPromises.push(
+          axios.post(`${API_BASE_URL}/condition-translations`, {
+            conditionId: conditionId,
+            language: "OM",
+            translated_name: translations.oromo.translated_name || "",
+            translated_description: translations.oromo.translated_description || ""
+          }, {
+            headers: { Authorization: `Bearer ${token}` }
+          }).catch(error => {
+            if (error.response?.status === 501) {
+              console.warn('⚠️ Condition translations endpoint not implemented yet (501)');
+              return { data: { success: true, message: 'Skipped - endpoint not implemented' } };
+            }
+            throw error;
+          })
+        );
+      }
+    }
+
+    if (translationPromises.length > 0) {
+      const results = await Promise.allSettled(translationPromises);
+      const succeeded = results.filter(r => r.status === 'fulfilled').length;
+      const failed = results.filter(r => r.status === 'rejected').length;
+      console.log(`✅ Saved ${succeeded} condition translations (${failed} failed - may be unimplemented endpoints)`);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!validateForm()) return;
+
     setIsSubmitting(true);
-    
+    setApiError("");
+    setUploadProgress(0);
+
     try {
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      onSave(formData);
+      // Use string IDs for all condition handling
+      const conditionIdsArray = [...formData.conditionIds];
+      console.log('📋 Selected condition IDs:', conditionIdsArray);
+      const invalidConditions = conditionIdsArray.filter(id => !conditions.find(c => String(c.id) === String(id)));
+      if (invalidConditions.length > 0) {
+        throw new Error(`Invalid condition IDs: ${invalidConditions.join(', ')}`);
+      }
+      const selectedConditions = conditions.filter(c => conditionIdsArray.includes(String(c.id)) || conditionIdsArray.includes(c.id));
+      console.log('📋 Selected conditions details:', selectedConditions.map(c => ({ id: c.id, name: c.name })));
+      
+      // Create herb
+      const herbData = {
+        name: formData.name.trim(),
+        scientificName: formData.scientificName.trim(),
+        description: formData.description.trim(),
+        preparation: formData.preparation.trim() || "No preparation information available",
+        safetyWarning: formData.safetyWarning.trim(),
+        source: formData.source.trim() || "",
+        conditionIds: conditionIdsArray
+      };
+
+      console.log('📤 Creating herb with herbApi...');
+      const createdHerb = await herbApi.createHerb(herbData);
+      
+      console.log('✅ Herb created:', createdHerb);
+      
+      let finalHerb = { ...createdHerb };
+      let imageUrl = null;
+      let imageUploadFailed = false;
+      let translationFailed = false;
+
+      // Upload image AFTER herb is created (skip if endpoint not available)
+      if (formData.image && createdHerb.id) {
+        setIsUploadingImage(true);
+        setUploadProgress(30);
+        
+        try {
+          console.log(`📸 Uploading image for herb ID: ${createdHerb.id}`);
+          setUploadProgress(60);
+          
+          imageUrl = await uploadHerbImage(createdHerb.id, formData.image);
+          setUploadProgress(100);
+          
+          if (imageUrl) {
+            finalHerb.imageUrl = imageUrl;
+            console.log('✅ Image URL:', imageUrl);
+          } else if (formData.image) {
+            imageUploadFailed = true;
+          }
+        } catch (uploadError) {
+          console.error('❌ Image upload failed:', uploadError);
+          imageUploadFailed = true;
+        } finally {
+          setIsUploadingImage(false);
+        }
+      }
+
+      // Save translations (skip if endpoints not available)
+      try {
+        await saveTranslations(createdHerb.id);
+      } catch (translationError) {
+        console.warn('⚠️ Translation save failed:', translationError.message);
+        translationFailed = true;
+      }
+      
+      // Save condition translations (skip if endpoints not available)
+      try {
+        await saveConditionTranslations();
+      } catch (conditionTranslationError) {
+        console.warn('⚠️ Condition translation save failed:', conditionTranslationError.message);
+        translationFailed = true;
+      }
+
+      // Add selected conditions info to the herb object
+      const herbWithConditions = {
+        ...finalHerb,
+        conditionIds: conditionIdsArray,
+        selectedConditions: selectedConditions,
+        translations: translations,
+        conditionTranslations: conditionTranslations
+      };
+
+      if (onSave) {
+        console.log('📞 Calling onSave with herb:', herbWithConditions);
+        onSave(herbWithConditions);
+      }
+
+      // Build success message
+      let successMessage = `✅ Herb "${formData.name}" added successfully with ${conditionIdsArray.length} condition(s)!`;
+      if (imageUrl) {
+        successMessage += `\n📸 Image uploaded successfully.`;
+      } else if (imageUploadFailed) {
+        successMessage += `\n⚠️ Image upload failed (endpoint not available). You can add the image later.`;
+      }
+      if (translationFailed) {
+        successMessage += `\n⚠️ Some translations were not saved (endpoints not available). You can add them later.`;
+      }
+      
+      alert(successMessage);
       handleReset();
       onClose();
     } catch (error) {
-      console.error('Error adding herb:', error);
+      console.error('❌ Error in handleSubmit:', error);
+      
+      if (error.message?.includes('already exists')) {
+        setErrors(prev => ({
+          ...prev,
+          name: "A herb with this name already exists. Please use a different name."
+        }));
+      } else {
+        setApiError(error.message || "Failed to add herb. Please try again.");
+      }
     } finally {
       setIsSubmitting(false);
+      setUploadProgress(0);
     }
   };
 
   const handleReset = () => {
+    if (formData.imagePreview) {
+      URL.revokeObjectURL(formData.imagePreview);
+    }
+    
     setFormData({
-      commonName: '',
-      scientificName: '',
-      partsUsed: 'LEAVES',
-      indigenousRegion: '',
-      status: 'draft',
-      description: '',
-      medicinalUses: '',
-      contraindications: '',
-      dosage: '',
-      preparation: '',
-      storageInstructions: '',
-      imageUrl: '',
-      skinConditions: [],
-      categories: []
+      name: "",
+      scientificName: "",
+      description: "",
+      preparation: "",
+      safetyWarning: "",
+      source: "",
+      conditionIds: [],
+      image: null,
+      imagePreview: null
     });
+    setTranslations({
+      amharic: { translated_name: "", translated_uses: "", translated_preparation: "", translated_safety: "", source: "" },
+      oromo: { translated_name: "", translated_uses: "", translated_preparation: "", translated_safety: "", source: "" }
+    });
+    setConditionTranslations({});
+    setSelectedConditionId("");
+    setShowNewConditionForm(false);
+    setNewCondition({ name: '', description: '' });
     setErrors({});
-    setSearchTerm('');
-    setCategorySearchTerm('');
+    setApiError("");
+    setUploadProgress(0);
   };
 
-  const filteredSkinConditions = skinConditions.filter(condition =>
-    condition.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const filteredCategories = herbCategories.filter(category =>
-    category.name.toLowerCase().includes(categorySearchTerm.toLowerCase())
-  );
-
-  const tabs = [
-    { id: 'basic', label: 'Basic Information', icon: Leaf },
-    { id: 'categories', label: 'Categories & Conditions', icon: Shield },
-    { id: 'details', label: 'Details & Instructions', icon: Package },
-  ];
+  // Get the list of selected condition objects
+  const selectedConditionObjects = conditions.filter(c => formData.conditionIds.includes(String(c.id)) || formData.conditionIds.includes(c.id));
 
   if (!isOpen) return null;
 
-  // Modal content
+  // ✅ FIX: Check if document.body exists before creating portal
+  const portalTarget = document.body;
+  if (!portalTarget) return null;
+
   const modalContent = (
     <div className="fixed inset-0 z-[9999] overflow-y-auto">
-      {/* Backdrop - only blurs the background, not the modal */}
-      <div 
-        className="fixed inset-0 bg-black/50"
-        style={{ backdropFilter: 'blur(8px)' }}
-        onClick={onClose}
-      />
-      
-      {/* Modal - crisp and clear, no blur */}
-      <div className="relative flex min-h-full items-center justify-center p-4">
-        <div className="relative w-full max-w-5xl transform overflow-hidden rounded-2xl bg-white shadow-2xl transition-all">
-          
-          {/* Header with gradient */}
-          <div className="bg-gradient-to-r from-emerald-600 to-emerald-500 px-6 py-5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="rounded-lg bg-white/20 p-2">
-                  <Leaf className="h-6 w-6 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-semibold text-white">Add New Herb</h3>
-                  <p className="text-sm text-emerald-50">Add a new herb to your digital pharmacopoeia</p>
-                </div>
-              </div>
-              <button
-                onClick={onClose}
-                className="rounded-lg bg-white/10 p-2 text-white/80 transition-colors hover:bg-white/20 hover:text-white"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-          </div>
+      <div className="fixed inset-0 bg-black/50" onClick={onClose} />
 
-          {/* Tabs */}
-          <div className="border-b border-gray-200 bg-gray-50/50 px-6">
-            <nav className="flex -mb-px space-x-6">
-              {tabs.map(tab => {
-                const Icon = tab.icon;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`
-                      flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm
-                      transition-all duration-200
-                      ${activeTab === tab.id
-                        ? 'border-emerald-500 text-emerald-600'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                      }
-                    `}
-                  >
-                    <Icon className={`h-4 w-4 ${activeTab === tab.id ? 'text-emerald-500' : 'text-gray-400'}`} />
-                    <span>{tab.label}</span>
-                    {tab.id === 'categories' && formData.categories.length > 0 && (
-                      <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
-                        {formData.categories.length}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </nav>
+      <div className="relative flex min-h-full items-center justify-center p-4">
+        <div className="relative w-full max-w-4xl rounded-2xl bg-white shadow-2xl">
+          <div className="bg-gradient-to-r from-emerald-600 to-emerald-500 px-6 py-5 flex justify-between items-center">
+            <div className="flex items-center space-x-3">
+              <Leaf className="h-6 w-6 text-white" />
+              <h3 className="text-xl font-semibold text-white">Add New Herb</h3>
+            </div>
+            <button onClick={onClose} className="hover:opacity-80 transition-opacity">
+              <X className="h-5 w-5 text-white" />
+            </button>
           </div>
 
           <form onSubmit={handleSubmit}>
-            <div className="max-h-[60vh] overflow-y-auto px-6 py-6">
-              {/* Basic Information Tab */}
-              {activeTab === 'basic' && (
-                <div className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Common Name <span className="text-red-500">*</span>
-                        </label>
-                        <Input
-                          type="text"
-                          value={formData.commonName}
-                          onChange={(e) => handleChange('commonName', e.target.value)}
-                          placeholder="e.g., Ashwagandha"
-                          className={errors.commonName ? 'border-red-500 focus:ring-red-500' : ''}
-                          icon={Leaf}
-                          required
-                        />
-                        {errors.commonName && (
-                          <p className="mt-1 text-xs text-red-600 flex items-center">
-                            <AlertCircle className="h-3 w-3 mr-1" />
-                            {errors.commonName}
-                          </p>
-                        )}
-                      </div>
+            <div className="px-6 py-6 space-y-6 max-h-[70vh] overflow-y-auto">
+              {isLoadingConditions && (
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-600 text-sm">
+                  Loading conditions...
+                </div>
+              )}
+              
+              {apiError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+                  <p className="font-medium">Error:</p>
+                  <p>{apiError}</p>
+                </div>
+              )}
 
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Scientific Name <span className="text-red-500">*</span>
-                        </label>
-                        <Input
-                          type="text"
-                          value={formData.scientificName}
-                          onChange={(e) => handleChange('scientificName', e.target.value)}
-                          placeholder="e.g., Withania somnifera"
-                          className={errors.scientificName ? 'border-red-500 focus:ring-red-500' : ''}
-                          required
-                        />
-                        {errors.scientificName && (
-                          <p className="mt-1 text-xs text-red-600 flex items-center">
-                            <AlertCircle className="h-3 w-3 mr-1" />
-                            {errors.scientificName}
-                          </p>
-                        )}
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Parts Used <span className="text-red-500">*</span>
-                        </label>
-                        <select
-                          value={formData.partsUsed}
-                          onChange={(e) => handleChange('partsUsed', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white shadow-sm"
-                        >
-                          {partsUsedOptions.map(option => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Indigenous Region <span className="text-red-500">*</span>
-                        </label>
-                        <Input
-                          type="text"
-                          value={formData.indigenousRegion}
-                          onChange={(e) => handleChange('indigenousRegion', e.target.value)}
-                          placeholder="e.g., India, Middle East"
-                          className={errors.indigenousRegion ? 'border-red-500 focus:ring-red-500' : ''}
-                          required
-                        />
-                        {errors.indigenousRegion && (
-                          <p className="mt-1 text-xs text-red-600 flex items-center">
-                            <AlertCircle className="h-3 w-3 mr-1" />
-                            {errors.indigenousRegion}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Description <span className="text-red-500">*</span>
-                        </label>
-                        <textarea
-                          value={formData.description}
-                          onChange={(e) => handleChange('description', e.target.value)}
-                          rows="5"
-                          className={`
-                            w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500
-                            shadow-sm resize-none
-                            ${errors.description ? 'border-red-500' : 'border-gray-300'}
-                          `}
-                          placeholder="Brief description of the herb..."
-                          required
-                        />
-                        {errors.description && (
-                          <p className="mt-1 text-xs text-red-600 flex items-center">
-                            <AlertCircle className="h-3 w-3 mr-1" />
-                            {errors.description}
-                          </p>
-                        )}
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Status
-                        </label>
-                        <div className="flex space-x-4 bg-gray-50 p-3 rounded-lg">
-                          {statusOptions.map(option => (
-                            <label key={option.value} className="flex items-center">
-                              <input
-                                type="radio"
-                                name="status"
-                                value={option.value}
-                                checked={formData.status === option.value}
-                                onChange={(e) => handleChange('status', e.target.value)}
-                                className="h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-gray-300"
-                              />
-                              <span className={`ml-2 text-sm px-2 py-1 rounded-full ${option.color}`}>
-                                {option.label}
-                              </span>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
+              {/* Upload Progress Bar */}
+              {isUploadingImage && (
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-blue-700">Uploading image...</span>
+                    <span className="text-sm text-blue-700">{uploadProgress}%</span>
+                  </div>
+                  <div className="w-full bg-blue-200 rounded-full h-2">
+                    <div 
+                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
                   </div>
                 </div>
               )}
 
-              {/* Categories & Skin Conditions Tab */}
-              {activeTab === 'categories' && (
-                <div className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Herb Categories */}
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <label className="block text-sm font-medium text-gray-700">
-                          Herb Categories <span className="text-red-500">*</span>
-                        </label>
-                        {formData.categories.length > 0 && (
-                          <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full">
-                            {formData.categories.length} selected
-                          </span>
-                        )}
-                      </div>
-                      
-                      <div className="relative mb-3">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                        <input
-                          type="text"
-                          placeholder="Search categories..."
-                          value={categorySearchTerm}
-                          onChange={(e) => setCategorySearchTerm(e.target.value)}
-                          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm"
-                        />
-                      </div>
+              {/* Image Upload Section */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Herb Image <span className="text-red-500">*</span>
+                </label>
+                <div className="mt-1 flex items-center gap-4">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    className="w-full border border-gray-300 rounded-lg p-2 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
+                  />
+                </div>
+                {errors.image && (
+                  <p className="text-red-500 text-xs mt-1">{errors.image}</p>
+                )}
+                
+                {formData.imagePreview && (
+                  <div className="mt-3">
+                    <p className="text-xs text-gray-500 mb-2">Preview:</p>
+                    <img
+                      src={formData.imagePreview}
+                      alt="Herb preview"
+                      className="w-32 h-32 object-cover rounded-lg border border-gray-200"
+                    />
+                    <p className="text-xs text-gray-400 mt-1">
+                      Selected: {formData.image?.name}
+                    </p>
+                  </div>
+                )}
+              </div>
 
-                      <div className={`
-                        border rounded-lg overflow-hidden
-                        ${errors.categories ? 'border-red-500' : 'border-gray-200'}
-                      `}>
-                        <div className="max-h-72 overflow-y-auto divide-y divide-gray-100">
-                          {filteredCategories.length > 0 ? (
-                            filteredCategories.map(category => (
-                              <label
-                                key={category.id}
-                                className={`
-                                  flex items-center justify-between p-3 hover:bg-gray-50 cursor-pointer
-                                  transition-colors duration-150
-                                  ${formData.categories.includes(category.id) ? 'bg-emerald-50/50' : ''}
-                                `}
-                              >
-                                <div className="flex items-center">
-                                  <input
-                                    type="checkbox"
-                                    checked={formData.categories.includes(category.id)}
-                                    onChange={() => handleMultiSelect('categories', category.id)}
-                                    className="h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-gray-300 rounded"
-                                  />
-                                  <span className={`ml-3 text-sm px-2 py-1 rounded-full ${category.color}`}>
-                                    {category.name}
-                                  </span>
-                                </div>
-                                {formData.categories.includes(category.id) && (
-                                  <Check className="h-4 w-4 text-emerald-600" />
-                                )}
-                              </label>
-                            ))
-                          ) : (
-                            <div className="p-4 text-center text-gray-500 text-sm">
-                              No categories found
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      {errors.categories && (
-                        <p className="mt-1 text-xs text-red-600 flex items-center">
-                          <AlertCircle className="h-3 w-3 mr-1" />
-                          {errors.categories}
-                        </p>
-                      )}
-                    </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Name <span className="text-red-500">*</span>
+                </label>
+                <Input
+                  value={formData.name}
+                  onChange={(e) => handleChange("name", e.target.value)}
+                  placeholder="e.g., Rosemary, Lavender, Chamomile"
+                  className={errors.name ? 'border-red-500' : ''}
+                />
+                {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
+              </div>
 
-                    {/* Skin Conditions */}
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <label className="block text-sm font-medium text-gray-700">
-                          Skin Conditions Treated
-                        </label>
-                        {formData.skinConditions.length > 0 && (
-                          <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full">
-                            {formData.skinConditions.length} selected
-                          </span>
-                        )}
-                      </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Scientific Name <span className="text-red-500">*</span>
+                </label>
+                <Input
+                  value={formData.scientificName}
+                  onChange={(e) => handleChange("scientificName", e.target.value)}
+                  placeholder="e.g., Salvia rosmarinus, Lavandula angustifolia"
+                  className={errors.scientificName ? 'border-red-500' : ''}
+                />
+                {errors.scientificName && <p className="text-red-500 text-xs mt-1">{errors.scientificName}</p>}
+              </div>
 
-                      <div className="relative mb-3">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                        <input
-                          type="text"
-                          placeholder="Search conditions..."
-                          value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm"
-                        />
-                      </div>
-
-                      <div className="border border-gray-200 rounded-lg overflow-hidden">
-                        <div className="max-h-72 overflow-y-auto divide-y divide-gray-100">
-                          {filteredSkinConditions.length > 0 ? (
-                            filteredSkinConditions.map(condition => {
-                              const IconComponent = condition.icon;
-                              return (
-                                <label
-                                  key={condition.id}
-                                  className={`
-                                    flex items-center justify-between p-3 hover:bg-gray-50 cursor-pointer
-                                    transition-colors duration-150
-                                    ${formData.skinConditions.includes(condition.id) ? 'bg-emerald-50/50' : ''}
-                                  `}
-                                >
-                                  <div className="flex items-center">
-                                    <input
-                                      type="checkbox"
-                                      checked={formData.skinConditions.includes(condition.id)}
-                                      onChange={() => handleMultiSelect('skinConditions', condition.id)}
-                                      className="h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-gray-300 rounded"
-                                    />
-                                    <IconComponent className={`h-4 w-4 ml-3 mr-2 ${condition.color}`} />
-                                    <span className="text-sm text-gray-700">{condition.name}</span>
-                                  </div>
-                                  {formData.skinConditions.includes(condition.id) && (
-                                    <Check className="h-4 w-4 text-emerald-600" />
-                                  )}
-                                </label>
-                              );
-                            })
-                          ) : (
-                            <div className="p-4 text-center text-gray-500 text-sm">
-                              No conditions found
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      <p className="text-xs text-gray-500 mt-2">
-                        Select the skin conditions that this herb can help treat
-                      </p>
+              {/* Multiple Conditions Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Conditions <span className="text-red-500">*</span>
+                </label>
+                <p className="text-xs text-gray-500 mb-2">
+                  Select one or more conditions that this herb treats
+                </p>
+                
+                {formData.conditionIds.length > 0 && (
+                  <div className="mb-3 p-3 bg-emerald-50 rounded-lg border border-emerald-200">
+                    <div className="text-xs font-medium text-emerald-700 mb-2">Selected Conditions:</div>
+                    <div className="flex flex-wrap gap-2">
+                      {formData.conditionIds.map(id => {
+                        const condition = conditions.find(c => c.id === id);
+                        return (
+                          <div key={id} className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full text-sm group">
+                            <span>{condition?.name || `ID: ${id}`}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveCondition(id)}
+                              className="hover:bg-emerald-200 rounded-full p-0.5 transition-colors"
+                              title="Remove condition from herb only (not from database)"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
+                )}
+                
+                <div className="flex gap-2 mb-2">
+                  <select
+                    className={`flex-1 border rounded-lg p-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none ${
+                      errors.conditionIds ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    value={selectedConditionId}
+                    onChange={(e) => setSelectedConditionId(e.target.value)}
+                    disabled={isLoadingConditions}
+                  >
+                    <option value="">Select a condition to add...</option>
+                    {conditions
+                      .filter(condition => !formData.conditionIds.includes(String(condition.id)) && !formData.conditionIds.includes(condition.id))
+                      .map((condition) => (
+                        <option key={condition.id} value={condition.id}>
+                          {condition.name} (ID: {condition.id})
+                        </option>
+                      ))}
+                  </select>
+                  <Button type="button" onClick={handleAddCondition} variant="outline" className="px-4">
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                  
+                  {/* Delete button for selected condition - DELETES ONLY THE SELECTED ONE */}
+                  {selectedConditionId && (
+                    <Button 
+                      type="button" 
+                      onClick={() => {
+                        const condition = conditions.find(c => String(c.id) === String(selectedConditionId));
+                        if (condition) {
+                          handleDeleteCondition(condition.id, condition.name);
+                          setSelectedConditionId('');
+                        }
+                      }}
+                      variant="outline" 
+                      className="px-4 bg-red-50 border-red-300 hover:bg-red-100 text-red-600"
+                      title="Permanently delete this condition from database"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
-              )}
-
-              {/* Details & Instructions Tab */}
-              {activeTab === 'details' && (
-                <div className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-4">
+                
+                <button
+                  type="button"
+                  onClick={() => setShowNewConditionForm(!showNewConditionForm)}
+                  className="w-full text-sm text-emerald-600 hover:text-emerald-700 flex items-center justify-center gap-2 py-2 border-t border-gray-200 mt-2 pt-3"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  {showNewConditionForm ? 'Cancel' : '+ Create New Condition'}
+                </button>
+                
+                {showNewConditionForm && (
+                  <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <h4 className="text-sm font-medium text-blue-800 mb-2 flex items-center gap-2">
+                      <Sparkles className="h-4 w-4" />
+                      Create New Condition
+                    </h4>
+                    <div className="space-y-3">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Medicinal Uses
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                          Condition Name <span className="text-red-500">*</span>
                         </label>
-                        <textarea
-                          value={formData.medicinalUses}
-                          onChange={(e) => handleChange('medicinalUses', e.target.value)}
-                          rows="4"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 shadow-sm resize-none"
-                          placeholder="List key medicinal uses..."
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Contraindications
-                        </label>
-                        <textarea
-                          value={formData.contraindications}
-                          onChange={(e) => handleChange('contraindications', e.target.value)}
-                          rows="3"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 shadow-sm resize-none"
-                          placeholder="Any known contraindications..."
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Dosage
-                        </label>
-                        <Input
+                        <input
                           type="text"
-                          value={formData.dosage}
-                          onChange={(e) => handleChange('dosage', e.target.value)}
-                          placeholder="e.g., 300-500mg/day"
+                          value={newCondition.name}
+                          onChange={(e) => setNewCondition(prev => ({ ...prev, name: e.target.value }))}
+                          placeholder="e.g., Diabetes, Hypertension, Asthma"
+                          className="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
                         />
                       </div>
-
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Image URL
-                        </label>
-                        <Input
-                          type="text"
-                          value={formData.imageUrl}
-                          onChange={(e) => handleChange('imageUrl', e.target.value)}
-                          placeholder="https://example.com/image.jpg"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Preparation Instructions
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                          Description (Optional)
                         </label>
                         <textarea
-                          value={formData.preparation}
-                          onChange={(e) => handleChange('preparation', e.target.value)}
-                          rows="3"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 shadow-sm resize-none"
-                          placeholder="How to prepare the herb..."
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Storage Instructions
-                        </label>
-                        <textarea
-                          value={formData.storageInstructions}
-                          onChange={(e) => handleChange('storageInstructions', e.target.value)}
+                          value={newCondition.description}
+                          onChange={(e) => setNewCondition(prev => ({ ...prev, description: e.target.value }))}
+                          placeholder="Brief description of the condition..."
                           rows="2"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 shadow-sm resize-none"
-                          placeholder="How to store the herb..."
+                          className="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none resize-none"
                         />
+                      </div>
+                      {errors.newCondition && <p className="text-red-500 text-xs">{errors.newCondition}</p>}
+                      <div className="flex gap-2">
+                        <Button type="button" onClick={handleCreateCondition} disabled={isCreatingCondition} className="flex-1 bg-blue-600 hover:bg-blue-700">
+                          {isCreatingCondition ? "Creating..." : "Create Condition"}
+                        </Button>
+                        <Button type="button" onClick={() => { setShowNewConditionForm(false); setNewCondition({ name: '', description: '' }); setErrors(prev => ({ ...prev, newCondition: null })); }} variant="outline" className="flex-1">
+                          Cancel
+                        </Button>
                       </div>
                     </div>
                   </div>
+                )}
+                
+                {errors.conditionIds && <p className="text-red-500 text-xs mt-1">{errors.conditionIds}</p>}
+                {conditions.length > 0 && (
+                  <p className="text-gray-400 text-xs mt-2">
+                    {conditions.length} condition(s) available. Selected: {formData.conditionIds.length}
+                  </p>
+                )}
+              </div>
+
+              {/* Condition Translations Section - Only shown when conditions are selected */}
+              {selectedConditionObjects.length > 0 && (
+                <div className="border-t pt-4">
+                  <div className="flex items-center gap-2 mb-4">
+                    <BookOpen className="h-5 w-5 text-emerald-600" />
+                    <h3 className="text-lg font-semibold text-gray-900">Condition Translations</h3>
+                    <span className="text-xs text-gray-500">(Optional - Translate condition names for Amharic and Oromo)</span>
+                  </div>
+
+                  {/* Language Tabs for Conditions */}
+                  <div className="flex gap-2 mb-4 border-b">
+                    {languages.map(lang => (
+                      <button
+                        key={lang.code}
+                        type="button"
+                        onClick={() => setActiveConditionTranslationLang(lang.code)}
+                        className={`px-4 py-2 text-sm font-medium transition-colors ${
+                          activeConditionTranslationLang === lang.code
+                            ? 'border-b-2 border-emerald-500 text-emerald-600'
+                            : 'text-gray-500 hover:text-gray-700'
+                        }`}
+                      >
+                        <Languages className="h-4 w-4 inline mr-1" />
+                        {lang.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Condition Translation Forms for each selected condition */}
+                  <div className="space-y-4">
+                    {selectedConditionObjects.map(condition => {
+                      const currentTranslations = conditionTranslations[condition.id]?.[activeConditionTranslationLang] || {};
+                      return (
+                        <div key={condition.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-medium text-gray-900">{condition.name}</h4>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteCondition(condition.id, condition.name)}
+                              className="text-red-500 hover:text-red-700 transition-colors p-1 hover:bg-red-50 rounded-lg"
+                              title="Permanently delete this condition from database"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-xs font-medium text-gray-700 mb-1">
+                                Translated Name
+                              </label>
+                              <input
+                                type="text"
+                                value={currentTranslations.translated_name || ""}
+                                onChange={(e) => handleConditionTranslationChange(condition.id, activeConditionTranslationLang, 'translated_name', e.target.value)}
+                                placeholder={`${condition.name} in ${languages.find(l => l.code === activeConditionTranslationLang)?.label}`}
+                                className="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-700 mb-1">
+                                Translated Description
+                              </label>
+                              <input
+                                type="text"
+                                value={currentTranslations.translated_description || ""}
+                                onChange={(e) => handleConditionTranslationChange(condition.id, activeConditionTranslationLang, 'translated_description', e.target.value)}
+                                placeholder={`Description in ${languages.find(l => l.code === activeConditionTranslationLang)?.label}`}
+                                className="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
+
+              {/* Main Herb Details */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Description <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  className={`w-full border rounded-lg p-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none ${errors.description ? 'border-red-500' : 'border-gray-300'}`}
+                  rows="4"
+                  value={formData.description}
+                  onChange={(e) => handleChange("description", e.target.value)}
+                  placeholder="Detailed description of the herb..."
+                />
+                {errors.description && <p className="text-red-500 text-xs mt-1">{errors.description}</p>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Preparation</label>
+                <textarea
+                  className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                  rows="3"
+                  value={formData.preparation}
+                  onChange={(e) => handleChange("preparation", e.target.value)}
+                  placeholder="How to prepare and use the herb..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Source</label>
+                <textarea
+                  className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                  rows="2"
+                  value={formData.source}
+                  onChange={(e) => handleChange("source", e.target.value)}
+                  placeholder="e.g., WHO monographs on selected medicinal plants, scientific references, traditional knowledge sources..."
+                />
+                <p className="text-gray-400 text-xs mt-1">Optional: Provide the source or reference for this herb information</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Safety Warning <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  className={`w-full border rounded-lg p-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none ${errors.safetyWarning ? 'border-red-500' : 'border-gray-300'}`}
+                  rows="3"
+                  value={formData.safetyWarning}
+                  onChange={(e) => handleChange("safetyWarning", e.target.value)}
+                  placeholder="Important safety information..."
+                />
+                {errors.safetyWarning && <p className="text-red-500 text-xs mt-1">{errors.safetyWarning}</p>}
+              </div>
+
+              {/* Herb Translations Section */}
+              <div className="border-t pt-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <Globe className="h-5 w-5 text-emerald-600" />
+                  <h3 className="text-lg font-semibold text-gray-900">Herb Translations</h3>
+                  <span className="text-xs text-gray-500">(Optional - Add translations for Amharic and Oromo)</span>
+                </div>
+
+                {/* Language Tabs */}
+                <div className="flex gap-2 mb-4 border-b">
+                  {languages.map(lang => (
+                    <button
+                      key={lang.code}
+                      type="button"
+                      onClick={() => setActiveLanguage(lang.code)}
+                      className={`px-4 py-2 text-sm font-medium transition-colors ${
+                        activeLanguage === lang.code
+                          ? 'border-b-2 border-emerald-500 text-emerald-600'
+                          : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      <Languages className="h-4 w-4 inline mr-1" />
+                      {lang.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Translation Form */}
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Translated Name</label>
+                    <input
+                      type="text"
+                      value={translations[activeLanguage].translated_name}
+                      onChange={(e) => handleTranslationChange(activeLanguage, 'translated_name', e.target.value)}
+                      placeholder={`Enter herb name in ${languages.find(l => l.code === activeLanguage)?.label}`}
+                      className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Translated Uses/Description</label>
+                    <textarea
+                      value={translations[activeLanguage].translated_uses}
+                      onChange={(e) => handleTranslationChange(activeLanguage, 'translated_uses', e.target.value)}
+                      placeholder={`Enter uses/description in ${languages.find(l => l.code === activeLanguage)?.label}`}
+                      rows="3"
+                      className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Translated Preparation</label>
+                    <textarea
+                      value={translations[activeLanguage].translated_preparation}
+                      onChange={(e) => handleTranslationChange(activeLanguage, 'translated_preparation', e.target.value)}
+                      placeholder={`Enter preparation instructions in ${languages.find(l => l.code === activeLanguage)?.label}`}
+                      rows="2"
+                      className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Translated Safety Warning</label>
+                    <textarea
+                      value={translations[activeLanguage].translated_safety}
+                      onChange={(e) => handleTranslationChange(activeLanguage, 'translated_safety', e.target.value)}
+                      placeholder={`Enter safety warning in ${languages.find(l => l.code === activeLanguage)?.label}`}
+                      rows="2"
+                      className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Translation Source (Optional)</label>
+                    <input
+                      type="text"
+                      value={translations[activeLanguage].source}
+                      onChange={(e) => handleTranslationChange(activeLanguage, 'source', e.target.value)}
+                      placeholder="Source for this translation"
+                      className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
 
-            {/* Form Actions */}
-            <div className="bg-gray-50 px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-              <div className="text-xs text-gray-500">
-                <span className="text-red-500">*</span> Required fields
-              </div>
-              <div className="flex space-x-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleReset}
-                  disabled={isSubmitting}
-                  className="px-6"
-                >
-                  Reset
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={onClose}
-                  disabled={isSubmitting}
-                  className="px-6"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  variant="primary"
-                  disabled={isSubmitting}
-                  className="px-8 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                      </svg>
-                      Saving...
-                    </>
-                  ) : (
-                    'Save Herb'
-                  )}
-                </Button>
-              </div>
+            <div className="px-6 py-4 border-t flex justify-end space-x-3">
+              <Button type="button" onClick={onClose} variant="outline" disabled={isSubmitting}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isSubmitting || isLoadingConditions || isUploadingImage}>
+                {isSubmitting ? "Creating Herb..." : isUploadingImage ? "Uploading Image..." : "Save Herb"}
+              </Button>
             </div>
           </form>
         </div>
@@ -722,11 +2216,8 @@ const AddHerbModal = ({ isOpen, onClose, onSave }) => {
     </div>
   );
 
-  // Use Portal to render modal at the root level, outside of the dashboard container
-  return ReactDOM.createPortal(
-    modalContent,
-    document.body
-  );
+  // ✅ Use createPortal with a safety check
+  return ReactDOM.createPortal(modalContent, portalTarget);
 };
 
 export default AddHerbModal;

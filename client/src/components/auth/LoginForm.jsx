@@ -3,14 +3,15 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { 
   Mail, Lock, Eye, EyeOff, LogIn, 
-  User, Sparkles, AlertCircle, 
-  Facebook, Twitter, Chrome, Leaf
+  User, Sparkles, AlertCircle, Leaf
 } from 'lucide-react'
 import Button from '../common/Button'
 import { useTranslation } from '../../hooks/useTranslation'
+import { useAuth } from '../../contexts/AuthContext'
 
 const LoginForm = () => {
   const navigate = useNavigate()
+  const { login } = useAuth()
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -20,12 +21,6 @@ const LoginForm = () => {
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState({})
   const { t } = useTranslation()
-
-  const socialLogins = [
-    { provider: 'google', icon: Chrome, label: t('login.social.google'), color: 'hover:bg-red-50 border-red-100 text-red-600' },
-    { provider: 'facebook', icon: Facebook, label: t('login.social.facebook'), color: 'hover:bg-blue-50 border-blue-100 text-blue-600' },
-    { provider: 'twitter', icon: Twitter, label: t('login.social.twitter'), color: 'hover:bg-sky-50 border-sky-100 text-sky-600' },
-  ]
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target
@@ -44,15 +39,15 @@ const LoginForm = () => {
     const newErrors = {}
     
     if (!formData.email) {
-      newErrors.email = t('login.email.error.required')
+      newErrors.email = t('login.email.error.required') || 'Email is required'
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = t('login.email.error.invalid')
+      newErrors.email = t('login.email.error.invalid') || 'Please enter a valid email'
     }
     
     if (!formData.password) {
-      newErrors.password = t('login.password.error.required')
+      newErrors.password = t('login.password.error.required') || 'Password is required'
     } else if (formData.password.length < 6) {
-      newErrors.password = t('login.password.error.length')
+      newErrors.password = t('login.password.error.length') || 'Password must be at least 6 characters'
     }
     
     return newErrors
@@ -68,29 +63,33 @@ const LoginForm = () => {
     }
     
     setIsLoading(true)
+    setErrors({})
     
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500))
+      const result = await login(formData.email, formData.password)
       
-      console.log('Login successful:', formData)
-      navigate('/')
-      
+      if (result.success) {
+        // Redirect to home page or previous page
+        navigate('/')
+      } else {
+        setErrors({ 
+          general: result.error || t('login.error.general') || 'Invalid email or password' 
+        })
+      }
     } catch (error) {
-      setErrors({ general: t('login.error.general') })
+      console.error('Login error:', error)
+      setErrors({ 
+        general: t('login.error.general') || 'Login failed. Please try again.' 
+      })
     } finally {
       setIsLoading(false)
     }
   }
 
-  const handleSocialLogin = (provider) => {
-    console.log(`Social login with ${provider}`)
-    // Implement social login logic
-  }
-
   const handleForgotPassword = () => {
     console.log('Forgot password clicked')
     // Navigate to forgot password page
+    navigate('/forgot-password')
   }
 
   return (
@@ -116,8 +115,8 @@ const LoginForm = () => {
                   <Leaf className="h-7 w-7 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold">{t('login.brand.title')}</h1>
-                  <p className="text-emerald-100 text-sm">{t('login.brand.subtitle')}</p>
+                  <h1 className="text-2xl font-bold">{t('login.brand.title') || 'HerbiSense'}</h1>
+                  <p className="text-emerald-100 text-sm">{t('login.brand.subtitle') || 'Ethiopian Herbal Wisdom'}</p>
                 </div>
               </div>
 
@@ -125,18 +124,18 @@ const LoginForm = () => {
               <div className="space-y-6">
                 <div className="inline-flex items-center px-4 py-2 bg-white/20 backdrop-blur-sm rounded-full">
                   <Sparkles className="h-4 w-4 mr-2" />
-                  <span className="text-sm font-medium">{t('login.badge')}</span>
+                  <span className="text-sm font-medium">{t('login.badge') || 'Welcome Back'}</span>
                 </div>
                 
                 <h2 className="text-3xl md:text-4xl font-bold leading-tight">
-                  {t('login.hero.title')}{' '}
+                  {t('login.hero.title') || 'Continue Your'}{' '}
                   <span className="bg-gradient-to-r from-amber-300 to-yellow-300 bg-clip-text text-transparent">
-                    {t('login.hero.highlight')}
+                    {t('login.hero.highlight') || 'Herbal Journey'}
                   </span>
                 </h2>
                 
                 <p className="text-emerald-100 text-lg">
-                  {t('login.hero.description')}
+                  {t('login.hero.description') || 'Access your saved herbs and personalized recommendations'}
                 </p>
               </div>
 
@@ -147,8 +146,8 @@ const LoginForm = () => {
                     <span className="text-white font-bold">✓</span>
                   </div>
                   <div>
-                    <h4 className="font-semibold text-white">{t('login.benefit.personalized')}</h4>
-                    <p className="text-emerald-100 text-sm">{t('login.benefit.personalized.desc')}</p>
+                    <h4 className="font-semibold text-white">{t('login.benefit.personalized') || 'Personalized Experience'}</h4>
+                    <p className="text-emerald-100 text-sm">{t('login.benefit.personalized.desc') || 'Get herb recommendations tailored to you'}</p>
                   </div>
                 </div>
                 
@@ -157,8 +156,8 @@ const LoginForm = () => {
                     <span className="text-white font-bold">✓</span>
                   </div>
                   <div>
-                    <h4 className="font-semibold text-white">{t('login.benefit.favorites')}</h4>
-                    <p className="text-emerald-100 text-sm">{t('login.benefit.favorites.desc')}</p>
+                    <h4 className="font-semibold text-white">{t('login.benefit.favorites') || 'Save Favorites'}</h4>
+                    <p className="text-emerald-100 text-sm">{t('login.benefit.favorites.desc') || 'Bookmark herbs for quick access'}</p>
                   </div>
                 </div>
                 
@@ -167,8 +166,8 @@ const LoginForm = () => {
                     <span className="text-white font-bold">✓</span>
                   </div>
                   <div>
-                    <h4 className="font-semibold text-white">{t('login.benefit.community')}</h4>
-                    <p className="text-emerald-100 text-sm">{t('login.benefit.community.desc')}</p>
+                    <h4 className="font-semibold text-white">{t('login.benefit.community') || 'Community Access'}</h4>
+                    <p className="text-emerald-100 text-sm">{t('login.benefit.community.desc') || 'Join discussions with herbal enthusiasts'}</p>
                   </div>
                 </div>
               </div>
@@ -186,10 +185,10 @@ const LoginForm = () => {
               </div>
               
               <h2 className="text-3xl font-bold text-gray-900 mb-3">
-                {t('login.form.title')}
+                {t('login.form.title') || 'Welcome Back'}
               </h2>
               <p className="text-gray-600">
-                {t('login.form.subtitle')}
+                {t('login.form.subtitle') || 'Sign in to continue your herbal journey'}
               </p>
             </div>
 
@@ -209,7 +208,7 @@ const LoginForm = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   <Mail className="inline h-4 w-4 mr-2 text-emerald-500" />
-                  {t('login.email.label')}
+                  {t('login.email.label') || 'Email Address'}
                 </label>
                 <div className="relative">
                   <input
@@ -220,7 +219,7 @@ const LoginForm = () => {
                     className={`w-full pl-12 pr-4 py-3 bg-white border-2 rounded-xl focus:outline-none transition-colors ${
                       errors.email ? 'border-red-300 focus:border-red-500' : 'border-emerald-200 focus:border-emerald-500'
                     }`}
-                    placeholder={t('login.email.placeholder')}
+                    placeholder={t('login.email.placeholder') || 'Enter your email'}
                   />
                   <Mail className="absolute left-4 top-3.5 h-5 w-5 text-emerald-400" />
                 </div>
@@ -234,14 +233,14 @@ const LoginForm = () => {
                 <div className="flex items-center justify-between mb-2">
                   <label className="block text-sm font-medium text-gray-700">
                     <Lock className="inline h-4 w-4 mr-2 text-emerald-500" />
-                    {t('login.password.label')}
+                    {t('login.password.label') || 'Password'}
                   </label>
                   <button
                     type="button"
                     onClick={handleForgotPassword}
                     className="text-sm text-emerald-600 hover:text-emerald-700 font-medium"
                   >
-                    {t('login.password.forgot')}
+                    {t('login.password.forgot') || 'Forgot Password?'}
                   </button>
                 </div>
                 <div className="relative">
@@ -253,7 +252,7 @@ const LoginForm = () => {
                     className={`w-full pl-12 pr-12 py-3 bg-white border-2 rounded-xl focus:outline-none transition-colors ${
                       errors.password ? 'border-red-300 focus:border-red-500' : 'border-emerald-200 focus:border-emerald-500'
                     }`}
-                    placeholder={t('login.password.placeholder')}
+                    placeholder={t('login.password.placeholder') || 'Enter your password'}
                   />
                   <Lock className="absolute left-4 top-3.5 h-5 w-5 text-emerald-400" />
                   <button
@@ -284,7 +283,7 @@ const LoginForm = () => {
                   id="rememberMe"
                 />
                 <label htmlFor="rememberMe" className="ml-3 text-sm text-gray-700">
-                  {t('login.remember.label')}
+                  {t('login.remember.label') || 'Remember me for 30 days'}
                 </label>
               </div>
 
@@ -296,60 +295,22 @@ const LoginForm = () => {
                 loading={isLoading}
                 className="w-full group"
               >
-                {isLoading ? t('login.button.signing') : t('login.button.signin')}
+                {isLoading ? (t('login.button.signing') || 'Signing in...') : (t('login.button.signin') || 'Sign In')}
                 <LogIn className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
               </Button>
             </form>
 
-            {/* Divider */}
-            <div className="my-8">
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-emerald-100"></div>
-                </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-4 bg-white text-gray-500">{t('login.divider')}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Social Login */}
-            <div className="grid grid-cols-3 gap-3 mb-8">
-              {socialLogins.map((social) => {
-                const Icon = social.icon
-                return (
-                  <button
-                    key={social.provider}
-                    onClick={() => handleSocialLogin(social.provider)}
-                    className={`flex items-center justify-center p-3 border-2 rounded-xl transition-all hover:scale-105 ${social.color}`}
-                  >
-                    <Icon className="h-5 w-5" />
-                  </button>
-                )
-              })}
-            </div>
-
             {/* Sign Up Link */}
-            <div className="text-center">
+            <div className="text-center mt-6">
               <p className="text-gray-600">
-                {t('login.signup.text')}{' '}
+                {t('login.signup.text') || "Don't have an account?"}{' '}
                 <Link
                   to="/register"
                   className="text-emerald-600 hover:text-emerald-700 font-semibold"
                 >
-                  {t('login.signup.link')}
+                  {t('login.signup.link') || 'Sign Up'}
                 </Link>
               </p>
-            </div>
-
-            {/* Security Notice */}
-            <div className="mt-8 pt-8 border-t border-emerald-100">
-              <div className="flex items-start">
-                <AlertCircle className="h-5 w-5 text-gray-400 mr-3 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-gray-500">
-                  {t('login.security.text')}
-                </p>
-              </div>
             </div>
           </div>
         </div>
@@ -361,15 +322,26 @@ const LoginForm = () => {
               <Leaf className="h-6 w-6 text-white" />
             </div>
             <div>
-              <h3 className="text-xl font-bold text-gray-900">{t('login.brand.title')}</h3>
-              <p className="text-emerald-600 text-sm">{t('login.brand.subtitle')}</p>
+              <h3 className="text-xl font-bold text-gray-900">{t('login.brand.title') || 'HerbiSense'}</h3>
+              <p className="text-emerald-600 text-sm">{t('login.brand.subtitle') || 'Ethiopian Herbal Wisdom'}</p>
             </div>
           </div>
           <p className="text-gray-600">
-            {t('login.mobile.subtitle')}
+            {t('login.mobile.subtitle') || 'Sign in to access your herbal directory'}
           </p>
         </div>
       </div>
+
+      {/* Add animation styles */}
+      <style jsx>{`
+        @keyframes float {
+          0%, 100% { transform: translateY(0px) rotate(0deg); }
+          50% { transform: translateY(-20px) rotate(5deg); }
+        }
+        .animate-float {
+          animation: float 6s ease-in-out infinite;
+        }
+      `}</style>
     </div>
   )
 }

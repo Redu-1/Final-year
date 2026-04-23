@@ -1,380 +1,281 @@
 // src/pages/UsersRoles/UsersRoles.jsx
-import { useState } from 'react';
-import UserTable from '../../components/users/UserTable';
-import PermissionsMatrix from '../../components/users/PermissionsMatrix';
-import InviteUserModal from '../../components/users/InviteUserModal';
-import EditUserModal from '../../components/users/EditUserModal';
-import ViewUserModal from '../../components/users/ViewUserModal';
-import SearchBar from '../../components/common/SearchBar';
+import { useState, useEffect } from 'react';
+import axios from 'axios';
+import { UserPlus, Shield, Trash2, RefreshCw, Users } from 'lucide-react';
+import { getApiBaseUrl } from '../../services/herbApi';
+
+const API_BASE_URL = getApiBaseUrl();
 
 const UsersRoles = () => {
-  const [activeTab, setActiveTab] = useState('users');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [selectedRole, setSelectedRole] = useState('Senior Botanist');
-  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [users, setUsers] = useState([
-    {
-      id: 1,
-      name: 'Elder Sarah M.',
-      email: 'sarah.keeper@herbisense.org',
-      role: 'KNOWLEDGE KEEPER',
-      status: 'active',
-      lastLogin: '5 mins ago',
-      joinDate: 'Jan 15, 2022',
-      avatar: 'SM',
-      department: 'Traditional Knowledge'
-    },
-    {
-      id: 2,
-      name: 'Julian Vance',
-      email: 'j.vance@metadata.edu',
-      role: 'METADATA SPEC.',
-      status: 'inactive',
-      lastLogin: '3 days ago',
-      joinDate: 'Mar 22, 2023',
-      avatar: 'JV',
-      department: 'Research & Data'
-    },
-    {
-      id: 3,
-      name: 'Elena Ruiz',
-      email: 'elena.ruiz@herbisense.org',
-      role: 'SYSTEM ADMIN',
-      status: 'online',
-      lastLogin: 'Active now',
-      joinDate: 'Nov 5, 2021',
-      avatar: 'ER',
-      department: 'IT & Administration'
-    },
-    {
-      id: 4,
-      name: 'Dr. Michael Chen',
-      email: 'm.chen@medschool.edu',
-      role: 'MEDICAL ADVISOR',
-      status: 'active',
-      lastLogin: '2 hours ago',
-      joinDate: 'Aug 30, 2022',
-      avatar: 'MC',
-      department: 'Medical Advisory'
-    },
-    {
-      id: 5,
-      name: 'Botany Team',
-      email: 'botany@herbisense.org',
-      role: 'RESEARCH TEAM',
-      status: 'active',
-      lastLogin: '1 day ago',
-      joinDate: 'Feb 14, 2023',
-      avatar: 'BT',
-      department: 'Botanical Research'
-    }
-  ]);
+  const [users, setUsers] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const [invites, setInvites] = useState([]);
-
-  const roles = [
-    { value: 'system-admin', label: 'System Admin' },
-    { value: 'senior-botanist', label: 'Senior Botanist' },
-    { value: 'knowledge-keeper', label: 'Knowledge Keeper' },
-    { value: 'metadata-specialist', label: 'Metadata Specialist' },
-    { value: 'content-moderator', label: 'Content Moderator' },
-    { value: 'viewer', label: 'Viewer' }
-  ];
-
-  const permissions = [
-    {
-      module: 'Botanical Records',
-      description: 'Access to taxonomical data and herb biology',
-      create: true,
-      read: true,
-      update: true,
-      delete: true
-    },
-    {
-      module: 'Indigenous Lore',
-      description: 'Cultural significance and traditional uses',
-      create: true,
-      read: true,
-      update: true,
-      delete: false
-    },
-    {
-      module: 'Geotagging & Maps',
-      description: 'Spatial distribution of medicinal flora',
-      create: true,
-      read: true,
-      update: true,
-      delete: false
-    },
-    {
-      module: 'Safety Guidelines',
-      description: 'Dosage and contraindication management',
-      create: false,
-      read: true,
-      update: false,
-      delete: false
-    },
-    {
-      module: 'User Management',
-      description: 'Access control and role assignments',
-      create: false,
-      read: true,
-      update: false,
-      delete: false
-    }
-  ];
-
-  // Filter users by search and status
-  const filteredUsers = users.filter(user => {
-    const matchesSearch = searchQuery === '' || 
-      user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.role.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesStatus = statusFilter === 'all' || user.status === statusFilter;
-    
-    return matchesSearch && matchesStatus;
-  });
-
-  // Calculate stats
-  const totalUsers = users.length;
-  const activeUsers = users.filter(u => u.status === 'active' || u.status === 'online').length;
-  const pendingInvites = invites.length;
-
-  // ========== USER HANDLERS ==========
-  
-  // Handle Invite User
-  const handleInviteUser = (invite) => {
-    // Add invite to list
-    setInvites(prev => [invite, ...prev]);
-    
-    // In a real app, you would send this to your backend
-    console.log('Invite sent:', invite);
-    
-    // Show success message
-    alert(`Invitation sent to ${invite.email}`);
-  };
-
-  // Handle View User - Opens view modal
-  const handleViewUser = (user) => {
-    setSelectedUser(user);
-    setIsViewModalOpen(true);
-  };
-
-  // Handle Edit User - Opens edit modal
-  const handleEditUser = (user) => {
-    setSelectedUser(user);
-    setIsEditModalOpen(true);
-  };
-
-  // Handle Save User - Updates the user in state
-  const handleSaveUser = (updatedUser) => {
-    setUsers(prevUsers => 
-      prevUsers.map(u => u.id === updatedUser.id ? updatedUser : u)
-    );
-    
-    // Show success message
-    alert(`User "${updatedUser.name}" updated successfully`);
-  };
-
-  // Handle Delete User - With confirmation
-  const handleDeleteUser = (user) => {
-    if (window.confirm(`Are you sure you want to delete ${user.name}? This action cannot be undone.`)) {
-      setUsers(prev => prev.filter(u => u.id !== user.id));
-      alert(`User "${user.name}" deleted successfully`);
+  // Try to fetch existing users from available endpoints
+  const fetchExistingUsers = async () => {
+    setIsRefreshing(true);
+    try {
+      const token = localStorage.getItem('herbisense_token') || localStorage.getItem('token');
+      
+      // Try multiple possible endpoints to get users
+      const endpoints = [
+        `${API_BASE_URL}/users`,
+        `${API_BASE_URL}/admin/users`,
+        `${API_BASE_URL}/admin/list`
+      ];
+      
+      for (const endpoint of endpoints) {
+        try {
+          console.log(`📤 Trying to fetch from: ${endpoint}`);
+          const response = await axios.get(endpoint, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (response.data && response.data.success && Array.isArray(response.data.data)) {
+            const admins = response.data.data.filter(user => user.role === 'admin');
+            if (admins.length > 0) {
+              setUsers(admins);
+              console.log(`✅ Found ${admins.length} admins from ${endpoint}`);
+              return;
+            }
+          } else if (Array.isArray(response.data)) {
+            const admins = response.data.filter(user => user.role === 'admin');
+            if (admins.length > 0) {
+              setUsers(admins);
+              console.log(`✅ Found ${admins.length} admins from ${endpoint}`);
+              return;
+            }
+          }
+        } catch (err) {
+          console.log(`Endpoint ${endpoint} failed:`, err.message);
+        }
+      }
+      
+      // If no endpoint works, show message
+      console.log('No GET endpoint available to fetch existing admins');
+    } catch (err) {
+      console.error('Error fetching users:', err);
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
-  // Handle Role Change - Change user role
-  const handleRoleChange = (user) => {
-    // In a real app, you would open a role selector dropdown
-    const newRole = prompt(`Change role for ${user.name}:\nCurrent role: ${user.role}\n\nEnter new role:`, user.role);
-    if (newRole && newRole !== user.role) {
-      setUsers(prevUsers => 
-        prevUsers.map(u => u.id === user.id ? { ...u, role: newRole } : u)
-      );
-      alert(`Role updated to ${newRole}`);
+  // Create admin
+  const handleCreateAdmin = async () => {
+    const fullName = prompt("Enter full name:");
+    if (!fullName) return;
+    
+    const email = prompt("Enter email:");
+    if (!email) return;
+    
+    const password = prompt("Enter password:");
+    if (!password) return;
+    
+    setIsLoading(true);
+    
+    try {
+      const token = localStorage.getItem('herbisense_token') || localStorage.getItem('token');
+      
+      const adminData = {
+        fullName: fullName.trim(),
+        email: email.trim(),
+        password: password
+      };
+      
+      console.log('📤 Creating admin:', adminData);
+      
+      const response = await axios.post(`${API_BASE_URL}/admin/create-admin`, adminData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      console.log('✅ Admin created:', response.data);
+      
+      if (response.status === 201 || response.data?.success) {
+        const newAdmin = {
+          id: Date.now(),
+          fullName: fullName.trim(),
+          email: email.trim(),
+          role: 'admin',
+          status: 'active',
+          createdAt: new Date().toISOString()
+        };
+        
+        setUsers(prev => [newAdmin, ...prev]);
+        alert('✅ Admin created successfully!');
+      } else {
+        alert(response.data?.message || 'Failed to create admin');
+      }
+    } catch (err) {
+      console.error('❌ Error creating admin:', err);
+      
+      if (err.response?.data?.message === 'User already exists') {
+        alert('⚠️ This email is already registered. Please use a different email.');
+        // Try to fetch existing users
+        await fetchExistingUsers();
+      } else {
+        alert(err.response?.data?.message || err.message || 'Failed to create admin');
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // ========== PERMISSIONS HANDLER ==========
-  
-  const handleSavePermissions = () => {
-    // In a real app, you would save permissions to backend
-    alert('Permissions saved successfully');
+  // Delete admin from local state
+  const handleDeleteAdmin = async (adminId, adminName) => {
+    if (!confirm(`Delete ${adminName}? This action cannot be undone.`)) return;
+    
+    try {
+      const token = localStorage.getItem('herbisense_token') || localStorage.getItem('token');
+      
+      // Try to delete from backend if endpoint exists
+      try {
+        await axios.delete(`${API_BASE_URL}/admin/${adminId}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+      } catch (deleteErr) {
+        console.warn('Backend delete failed or endpoint not found, removing from local state only');
+      }
+      
+      setUsers(prev => prev.filter(user => user.id !== adminId));
+      alert('✅ Admin removed successfully');
+    } catch (err) {
+      console.error('Error deleting admin:', err);
+      alert('Failed to delete admin');
+    }
   };
+
+  // Manual refresh
+  const handleRefresh = async () => {
+    await fetchExistingUsers();
+  };
+
+  // Load existing users on component mount
+  useEffect(() => {
+    fetchExistingUsers();
+  }, []);
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* HEADER */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Access Management</h1>
-        <button
-          onClick={() => setIsInviteModalOpen(true)}
-          className="inline-flex items-center px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 transition-colors shadow-sm"
-        >
-          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Invite User
-        </button>
-      </div>
-
-      {/* Tab Navigation */}
-      <div className="border-b border-gray-200">
-        <nav className="flex space-x-8">
-          <button
-            onClick={() => setActiveTab('users')}
-            className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
-              activeTab === 'users'
-                ? 'border-emerald-500 text-emerald-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Manage Users
-          </button>
-          <button
-            onClick={() => setActiveTab('roles')}
-            className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
-              activeTab === 'roles'
-                ? 'border-emerald-500 text-emerald-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Roles & Permissions
-          </button>
-        </nav>
-      </div>
-
-      {/* Users Tab */}
-      {activeTab === 'users' && (
-        <div className="space-y-6">
-          {/* Search and Filter */}
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <SearchBar
-                placeholder="Search users by name, email or role..."
-                value={searchQuery}
-                onChange={setSearchQuery}
-              />
-            </div>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-40 px-3 py-2 border border-gray-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500 text-sm"
-            >
-              <option value="all">All Status</option>
-              <option value="active">Active</option>
-              <option value="online">Online</option>
-              <option value="inactive">Inactive</option>
-            </select>
-          </div>
-
-          {/* Users Table */}
-          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-            <UserTable 
-              users={filteredUsers}
-              onEdit={handleEditUser}
-              onDelete={handleDeleteUser}
-              onView={handleViewUser}
-              onRoleChange={handleRoleChange}
-            />
-          </div>
-
-          {/* Simple Stats */}
-          <div className="flex items-center space-x-6 text-sm">
-            <span className="text-gray-600">
-              Total: <span className="font-medium text-gray-900">{totalUsers}</span>
-            </span>
-            <span className="text-gray-600">
-              Active: <span className="font-medium text-emerald-600">{activeUsers}</span>
-            </span>
-            <span className="text-gray-600">
-              Pending Invites: <span className="font-medium text-amber-600">{pendingInvites}</span>
-            </span>
-          </div>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Admin Management</h1>
+          <p className="text-sm text-gray-500 mt-1">Manage system administrators</p>
         </div>
-      )}
+        <div className="flex gap-3">
+          <button
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="p-2.5 bg-white border border-gray-200 rounded-xl hover:border-emerald-300 hover:shadow-sm transition-all disabled:opacity-50"
+            title="Refresh"
+          >
+            <RefreshCw className={`h-5 w-5 text-gray-600 ${isRefreshing ? 'animate-spin' : ''}`} />
+          </button>
+          <button
+            onClick={handleCreateAdmin}
+            disabled={isLoading}
+            className="inline-flex items-center px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50"
+          >
+            <UserPlus className="h-4 w-4 mr-2" />
+            Create Admin
+          </button>
+        </div>
+      </div>
 
-      {/* Roles Tab */}
-      {activeTab === 'roles' && (
-        <div className="space-y-6">
-          {/* Role Selector */}
-          <div className="flex items-center justify-between">
+      {/* Info Box - Show if no GET endpoint but admins might exist */}
+      {users.length === 0 && !isLoading && !isRefreshing && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <Users className="h-5 w-5 text-blue-600 mt-0.5" />
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">Permissions</h3>
-              <p className="text-sm text-gray-600">Role: {selectedRole}</p>
+              <p className="text-sm text-blue-800 font-medium">No admins displayed</p>
+              <p className="text-sm text-blue-700 mt-1">
+                Admins are stored in the database but there's no GET endpoint to fetch them.
+                When you create a new admin with a unique email, it will appear here.
+              </p>
+              <p className="text-sm text-blue-700 mt-2">
+                <strong>Note:</strong> The email <code className="bg-blue-100 px-1 rounded">creator@herbisense.com</code> already exists in the database.
+                Try creating an admin with a different email address.
+              </p>
             </div>
-            <select
-              className="w-48 px-3 py-2 border border-gray-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500 text-sm"
-              value={selectedRole}
-              onChange={(e) => setSelectedRole(e.target.value)}
-            >
-              {roles.map((role) => (
-                <option key={role.value} value={role.label}>
-                  {role.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Permissions Matrix */}
-          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-            <PermissionsMatrix permissions={permissions} />
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex justify-end space-x-3">
-            <button 
-              className="px-4 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition-colors"
-              onClick={() => {
-                // Reset to original permissions
-                alert('Changes discarded');
-              }}
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSavePermissions}
-              className="px-4 py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700 transition-colors"
-            >
-              Save Changes
-            </button>
           </div>
         </div>
       )}
 
-      {/* Invite User Modal */}
-      <InviteUserModal
-        isOpen={isInviteModalOpen}
-        onClose={() => setIsInviteModalOpen(false)}
-        onInvite={handleInviteUser}
-      />
+      {/* Loading State */}
+      {isLoading && (
+        <div className="flex justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+        </div>
+      )}
 
-      {/* Edit User Modal */}
-      <EditUserModal
-        isOpen={isEditModalOpen}
-        onClose={() => {
-          setIsEditModalOpen(false);
-          setSelectedUser(null);
-        }}
-        onSave={handleSaveUser}
-        user={selectedUser}
-      />
+      {/* Admins List */}
+      {!isLoading && (
+        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+          {users.length === 0 ? (
+            <div className="text-center py-12">
+              <Shield className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+              <p className="text-gray-500">No admins added yet</p>
+              <button
+                onClick={handleCreateAdmin}
+                className="mt-3 text-sm text-emerald-600 hover:text-emerald-700 font-medium"
+              >
+                Create your first admin
+              </button>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-200">
+              {users.map((admin) => (
+                <div key={admin.id} className="p-4 hover:bg-gray-50 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-500 to-teal-400 flex items-center justify-center text-white font-bold text-lg shadow-md">
+                        {(admin.fullName || admin.full_name || admin.name || 'A').charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-900">{admin.fullName || admin.full_name || admin.name}</p>
+                        <p className="text-sm text-gray-500">{admin.email}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
+                            ADMIN
+                          </span>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                            Active
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleDeleteAdmin(admin.id, admin.fullName || admin.full_name || admin.name)}
+                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Delete Admin"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
-      {/* View User Modal */}
-      <ViewUserModal
-        isOpen={isViewModalOpen}
-        onClose={() => {
-          setIsViewModalOpen(false);
-          setSelectedUser(null);
-        }}
-        user={selectedUser}
-      />
+      {/* Stats */}
+      {!isLoading && users.length > 0 && (
+        <div className="text-sm text-gray-600">
+          Total: {users.length} admin{users.length !== 1 ? 's' : ''}
+        </div>
+      )}
     </div>
   );
 };

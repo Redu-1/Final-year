@@ -1,21 +1,49 @@
 // src/components/Layout/Sidebar/Sidebar.jsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { 
   HomeIcon, 
-  BookOpenIcon, 
-  LightBulbIcon,
-  UsersIcon,
-  Cog6ToothIcon,
+  BookOpenIcon,
   ChevronLeftIcon,
-  ChevronRightIcon
+  ChevronRightIcon,
+  UsersIcon,
+  ChatBubbleLeftRightIcon,
+  Bars3Icon,
+  XMarkIcon
 } from '@heroicons/react/24/outline';
+import { useAuth } from '../../../contexts/AuthContext';
+import LogoImage from '../../../assets/Logo1.png';
 
 const Sidebar = () => {
   const [collapsed, setCollapsed] = useState(false);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const location = useLocation();
+  const { userType } = useAuth();
 
-  const menuItems = [
+  // Check if screen is mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+      if (window.innerWidth >= 768) {
+        setIsMobileOpen(false);
+      }
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Close mobile sidebar when route changes
+  useEffect(() => {
+    if (isMobile) {
+      setIsMobileOpen(false);
+    }
+  }, [location.pathname, isMobile]);
+
+  // Menu items based on user role
+  const baseMenuItems = [
     {
       id: 1,
       title: 'Dashboard',
@@ -31,14 +59,18 @@ const Sidebar = () => {
       path: '/herbs',
       badge: '',
       color: 'green'
-    },
+    }
+  ];
+
+  // Admin only gets extra menu items
+  const adminMenuItems = userType === 'admin' ? [
     {
       id: 3,
-      title: 'Recommendations',
-      icon: LightBulbIcon,
-      path: '/recommendations',
+      title: 'Feedback',
+      icon: ChatBubbleLeftRightIcon,
+      path: '/feedback',
       badge: '',
-      color: 'green'
+      color: 'purple'
     },
     {
       id: 4,
@@ -46,26 +78,19 @@ const Sidebar = () => {
       icon: UsersIcon,
       path: '/users',
       badge: '',
-      color: 'green'
-    },
-    // REMOVED: Content Management (id: 5)
-    {
-      id: 5,
-      title: 'System Settings',
-      icon: Cog6ToothIcon,
-      path: '/settings',
-      badge: null,
-      color: 'green'
+      color: 'blue'
     }
-  ];
+  ] : [];
+
+  // Combine menu items based on role
+  const menuItems = [...baseMenuItems, ...adminMenuItems];
 
   const getColorClasses = (color) => {
     const colors = {
       emerald: 'bg-emerald-500',
       green: 'bg-green-500',
-      yellow: 'bg-yellow-500',
       purple: 'bg-purple-500',
-      gray: 'bg-gray-500'
+      blue: 'bg-blue-500'
     };
     return colors[color] || 'bg-emerald-500';
   };
@@ -74,39 +99,45 @@ const Sidebar = () => {
     const colors = {
       emerald: 'bg-emerald-50 text-emerald-700 border-emerald-200',
       green: 'bg-green-50 text-green-700 border-green-200',
-      yellow: 'bg-yellow-50 text-yellow-700 border-yellow-200',
       purple: 'bg-purple-50 text-purple-700 border-purple-200',
-      gray: 'bg-gray-50 text-gray-700 border-gray-200'
+      blue: 'bg-blue-50 text-blue-700 border-blue-200'
     };
     return colors[color] || 'bg-emerald-50 text-emerald-700 border-emerald-200';
   };
 
-  return (
-    <aside className={`relative flex flex-col h-screen transition-all duration-300 ${collapsed ? 'w-20' : 'w-64'} bg-gradient-to-b from-gray-900 to-gray-800 text-white`}>
-      {/* Collapse Toggle */}
-      <button
-        onClick={() => setCollapsed(!collapsed)}
-        className="absolute -right-3 top-6 z-10 w-6 h-6 bg-gray-800 border-2 border-gray-700 rounded-full flex items-center justify-center hover:bg-gray-700 transition-colors"
-      >
-        {collapsed ? (
-          <ChevronRightIcon className="w-3 h-3 text-gray-300" />
-        ) : (
-          <ChevronLeftIcon className="w-3 h-3 text-gray-300" />
-        )}
-      </button>
+  // Mobile toggle button
+  const MobileToggleButton = () => (
+    <button
+      onClick={() => setIsMobileOpen(!isMobileOpen)}
+      className="fixed top-4 left-4 z-50 md:hidden p-2 bg-gray-900 rounded-lg shadow-lg text-white hover:bg-gray-700 transition-colors"
+    >
+      {isMobileOpen ? (
+        <XMarkIcon className="w-6 h-6" />
+      ) : (
+        <Bars3Icon className="w-6 h-6" />
+      )}
+    </button>
+  );
 
+  // Sidebar content
+  const SidebarContent = () => (
+    <>
       {/* Logo Section */}
-      <div className={`p-6 border-b border-gray-700 transition-all duration-300 ${collapsed ? 'px-4' : ''}`}>
+      <div className={`p-6 border-b border-gray-700 transition-all duration-300 ${collapsed && !isMobile ? 'px-4' : ''}`}>
         <div className="flex items-center space-x-3">
-          <div className={`flex-shrink-0 ${collapsed ? 'mx-auto' : ''}`}>
-            <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-400 rounded-xl flex items-center justify-center shadow-lg">
-              <span className="text-xl font-bold text-white">H</span>
-            </div>
+          <div className={`flex-shrink-0 ${collapsed && !isMobile ? 'mx-auto' : ''}`}>
+            <img 
+              src={LogoImage} 
+              alt="HerbiSense Logo" 
+              className="w-10 h-10 rounded-xl object-cover shadow-lg"
+            />
           </div>
-          {!collapsed && (
+          {(!collapsed || isMobile) && (
             <div className="flex-1 overflow-hidden">
-              <h1 className="text-xl font-bold tracking-tight text-white">HerbiSense</h1>
-              <p className="text-xs text-emerald-300 font-medium mt-0.5">ADMIN CONSOLE</p>
+              <h2 className="text-lg font-bold text-white tracking-tight">HerbiSense</h2>
+              <p className="text-xs text-emerald-300 font-medium mt-0.5">
+                {userType === 'admin' ? 'ADMIN CONSOLE' : 'HERB CREATOR PORTAL'}
+              </p>
             </div>
           )}
         </div>
@@ -121,12 +152,13 @@ const Sidebar = () => {
               key={item.id}
               to={item.path}
               className={({ isActive }) => `
-                flex items-center ${collapsed ? 'justify-center px-3' : 'px-4'} py-3 rounded-xl transition-all duration-200
+                flex items-center ${collapsed && !isMobile ? 'justify-center px-3' : 'px-4'} py-3 rounded-xl transition-all duration-200
                 ${isActive 
                   ? getActiveColorClasses(item.color) + ' shadow-sm transform scale-[1.02]' 
                   : 'text-gray-300 hover:bg-gray-700/50 hover:text-white'
                 }
               `}
+              title={collapsed && !isMobile ? item.title : ''}
             >
               <div className="relative flex-shrink-0">
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isActive ? getColorClasses(item.color) : 'bg-gray-700/50'}`}>
@@ -136,7 +168,7 @@ const Sidebar = () => {
                   <div className="absolute -right-1 top-1/2 transform -translate-y-1/2 w-1 h-4 bg-current rounded-full"></div>
                 )}
               </div>
-              {!collapsed && (
+              {(!collapsed || isMobile) && (
                 <div className="ml-3 flex-1 flex items-center justify-between overflow-hidden">
                   <span className="text-sm font-medium truncate">{item.title}</span>
                   {item.badge && (
@@ -150,34 +182,64 @@ const Sidebar = () => {
           );
         })}
       </nav>
+    </>
+  );
 
-      {/* User Profile Section */}
-      <div className={`p-4 border-t border-gray-700 ${collapsed ? 'px-3' : ''}`}>
-        <div className={`flex items-center ${collapsed ? 'justify-center' : ''}`}>
-          <div className="relative flex-shrink-0">
-            <div className="w-10 h-10 bg-gradient-to-br from-emerald-400 to-teal-300 rounded-full flex items-center justify-center shadow">
-              <span className="text-sm font-bold text-white">SJ</span>
-            </div>
-            <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 border-2 border-gray-800 rounded-full"></div>
-          </div>
-          {!collapsed && (
-            <div className="ml-3 flex-1 overflow-hidden">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-white truncate">Sarah Johnson</p>
-                  <p className="text-xs text-gray-400 truncate">Admin • Online</p>
-                </div>
-                <button className="ml-2 p-1 hover:bg-gray-700 rounded-lg">
-                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-          )}
+  // Desktop sidebar (always visible, can be collapsed)
+  if (!isMobile) {
+    return (
+      <>
+        <aside className={`relative flex flex-col h-screen transition-all duration-300 ${collapsed ? 'w-20' : 'w-64'} bg-gradient-to-b from-gray-900 to-gray-800 text-white shadow-xl z-40`}>
+          {/* Collapse Toggle - Desktop only */}
+          <button
+            onClick={() => setCollapsed(!collapsed)}
+            className="absolute -right-3 top-6 z-10 w-6 h-6 bg-gray-800 border-2 border-gray-700 rounded-full flex items-center justify-center hover:bg-gray-700 transition-colors"
+          >
+            {collapsed ? (
+              <ChevronRightIcon className="w-3 h-3 text-gray-300" />
+            ) : (
+              <ChevronLeftIcon className="w-3 h-3 text-gray-300" />
+            )}
+          </button>
+          
+          <SidebarContent />
+        </aside>
+      </>
+    );
+  }
+
+  // Mobile sidebar (hidden by default, shows when toggled)
+  return (
+    <>
+      <MobileToggleButton />
+      
+      {/* Overlay */}
+      {isMobileOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={() => setIsMobileOpen(false)}
+        />
+      )}
+      
+      {/* Mobile Sidebar */}
+      <aside className={`
+        fixed top-0 left-0 h-full w-64 bg-gradient-to-b from-gray-900 to-gray-800 text-white shadow-xl z-50
+        transform transition-transform duration-300 ease-in-out md:hidden
+        ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'}
+      `}>
+        <div className="relative h-full">
+          {/* Close button inside sidebar for mobile */}
+          <button
+            onClick={() => setIsMobileOpen(false)}
+            className="absolute top-4 right-4 z-10 p-1 rounded-lg bg-gray-700/50 hover:bg-gray-600 transition-colors"
+          >
+            <XMarkIcon className="w-5 h-5 text-gray-300" />
+          </button>
+          
+          <SidebarContent />
         </div>
-      </div>
-    </aside>
+      </aside>
+    </>
   );
 };
 
