@@ -118,22 +118,21 @@ const Header = () => {
 
           {/* Right Section - Slightly smaller */}
           <div className="flex items-center space-x-3">
-            {/* Notifications */}
             <div className="relative" ref={notificationsRef}>
-              <button
+              {/* <button
                 onClick={() => setNotificationsOpen(!notificationsOpen)}
                 className="p-2 text-gray-600 hover:text-emerald-600 hover:bg-gray-100 rounded-lg transition-colors relative"
               >
-                <BellIcon className="h-5 w-5" /> {/* Reduced from h-6 w-6 */}
+                <BellIcon className="h-5 w-5" />
                 {unreadCount > 0 && (
                   <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center animate-pulse">
                     {unreadCount}
                   </span>
                 )}
-              </button>
+              </button> */}
 
               {/* Notifications Dropdown */}
-              {notificationsOpen && (
+              {/* {notificationsOpen && (
                 <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
                   <div className="px-4 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-100">
                     Notifications
@@ -161,7 +160,7 @@ const Header = () => {
                     </button>
                   )}
                 </div>
-              )}
+              )} */}
             </div>
 
             {/* User Profile - More compact */}
@@ -194,21 +193,21 @@ const Header = () => {
                     <p className="text-xs text-gray-500 truncate">{user?.email || 'user@example.com'}</p>
                   </div>
                   
-                  <button
+                  {/* <button
                     onClick={() => navigate('/profile')}
                     className="w-full flex items-center px-4 py-2 text-xs text-gray-700 hover:bg-gray-50"
                   >
                     <UserCircleIcon className="h-4 w-4 mr-2 text-gray-400" />
                     Profile
-                  </button>
+                  </button> */}
                   
-                  <button
+                  {/* <button
                     onClick={() => navigate('/settings')}
                     className="w-full flex items-center px-4 py-2 text-xs text-gray-700 hover:bg-gray-50"
                   >
                     <Cog6ToothIcon className="h-4 w-4 mr-2 text-gray-400" />
                     Settings
-                  </button>
+                  </button> */}
                   
                   <div className="border-t border-gray-100 mt-1 pt-1">
                     <button

@@ -1079,7 +1079,6 @@
 
 // export default AddHerbModal;
 
-
 // src/components/herbs/AddHerbModal.jsx (ADMIN - WITH CONDITION TRANSLATIONS)
 import { useState, useEffect } from "react";
 import ReactDOM from "react-dom";
@@ -1121,9 +1120,18 @@ const AddHerbModal = ({ isOpen, onClose, onSave }) => {
   });
   const [activeLanguage, setActiveLanguage] = useState("amharic");
 
-  // Condition translation states
-  const [conditionTranslations, setConditionTranslations] = useState({});
-  const [activeConditionTranslationLang, setActiveConditionTranslationLang] = useState("amharic");
+  // Condition translation states - ONLY for NEW conditions being created
+  const [newConditionTranslations, setNewConditionTranslations] = useState({
+    amharic: {
+      translated_name: "",
+      translated_description: ""
+    },
+    oromo: {
+      translated_name: "",
+      translated_description: ""
+    }
+  });
+  const [activeNewConditionTranslationLang, setActiveNewConditionTranslationLang] = useState("amharic");
 
   const [conditions, setConditions] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -1190,16 +1198,6 @@ const AddHerbModal = ({ isOpen, onClose, onSave }) => {
       console.log('Conditions loaded:', conditionsList);
       setConditions(conditionsList);
       
-      // Initialize condition translations for existing conditions
-      const initialConditionTranslations = {};
-      conditionsList.forEach(condition => {
-        initialConditionTranslations[condition.id] = {
-          amharic: { translated_name: "", translated_description: "" },
-          oromo: { translated_name: "", translated_description: "" }
-        };
-      });
-      setConditionTranslations(initialConditionTranslations);
-      
       if (conditionsList.length === 0) {
         setApiError("No conditions available. Please add a condition first.");
       }
@@ -1213,13 +1211,11 @@ const AddHerbModal = ({ isOpen, onClose, onSave }) => {
 
   // Delete condition from database - DELETES ONLY THE SELECTED CONDITION
   const handleDeleteCondition = async (conditionId, conditionName) => {
-    // Safety check: ensure we have a valid ID
     if (!conditionId) {
       alert("❌ Error: Invalid condition ID");
       return;
     }
     
-    // Confirm before deleting
     const confirmDelete = window.confirm(
       `⚠️ Are you sure you want to delete the condition "${conditionName}"?\n\n` +
       `Condition ID: ${conditionId}\n\n` +
@@ -1247,12 +1243,10 @@ const AddHerbModal = ({ isOpen, onClose, onSave }) => {
       if (response.data && response.data.success) {
         alert(`✅ Condition "${conditionName}" deleted successfully!`);
         
-        // Remove ONLY the deleted condition from local state
         setConditions(prevConditions => 
           prevConditions.filter(c => c.id !== conditionId)
         );
         
-        // Remove this condition from selected condition IDs if it was selected
         if (formData.conditionIds.includes(conditionId)) {
           setFormData(prev => ({
             ...prev,
@@ -1260,14 +1254,6 @@ const AddHerbModal = ({ isOpen, onClose, onSave }) => {
           }));
         }
         
-        // Remove translations for ONLY this condition
-        setConditionTranslations(prev => {
-          const newTranslations = { ...prev };
-          delete newTranslations[conditionId];
-          return newTranslations;
-        });
-        
-        // Reset selected condition ID if it was the deleted one
         if (selectedConditionId === conditionId) {
           setSelectedConditionId("");
         }
@@ -1281,16 +1267,27 @@ const AddHerbModal = ({ isOpen, onClose, onSave }) => {
     }
   };
 
-  // Create new condition
+  // Create new condition WITH translations required
   const handleCreateCondition = async () => {
     if (!newCondition.name.trim()) {
       setErrors(prev => ({ ...prev, newCondition: "Condition name is required" }));
       return;
     }
 
+    // Validate translations for both Amharic and Oromo
+    if (!newConditionTranslations.amharic.translated_name.trim()) {
+      setErrors(prev => ({ ...prev, newConditionAmharicName: "Amharic translation for condition name is required" }));
+      return;
+    }
+    if (!newConditionTranslations.oromo.translated_name.trim()) {
+      setErrors(prev => ({ ...prev, newConditionOromoName: "Oromo translation for condition name is required" }));
+      return;
+    }
+
     setIsCreatingCondition(true);
     try {
       const token = localStorage.getItem('token');
+      // Create condition first
       const response = await axios.post(`${API_BASE_URL}/conditions`, {
         name: newCondition.name.trim(),
         description: newCondition.description.trim() || ""
@@ -1305,12 +1302,46 @@ const AddHerbModal = ({ isOpen, onClose, onSave }) => {
         const createdCondition = response.data.data;
         console.log('✅ New condition created:', createdCondition);
         
+        // Now save translations for the new condition
+        const translationPromises = [];
+        
+        // Save Amharic translation
+        translationPromises.push(
+          axios.post(`${API_BASE_URL}/condition-translations`, {
+            conditionId: createdCondition.id,
+            language: "AM",
+            translated_name: newConditionTranslations.amharic.translated_name,
+            translated_description: newConditionTranslations.amharic.translated_description || ""
+          }, {
+            headers: { Authorization: `Bearer ${token}` }
+          })
+        );
+        
+        // Save Oromo translation
+        translationPromises.push(
+          axios.post(`${API_BASE_URL}/condition-translations`, {
+            conditionId: createdCondition.id,
+            language: "OM",
+            translated_name: newConditionTranslations.oromo.translated_name,
+            translated_description: newConditionTranslations.oromo.translated_description || ""
+          }, {
+            headers: { Authorization: `Bearer ${token}` }
+          })
+        );
+        
+        await Promise.all(translationPromises);
+        console.log('✅ Condition translations saved');
+        
         await fetchConditions();
         setSelectedConditionId(createdCondition.id.toString());
         setShowNewConditionForm(false);
         setNewCondition({ name: '', description: '' });
-        setErrors(prev => ({ ...prev, newCondition: null }));
-        alert(`✅ Condition "${createdCondition.name}" created successfully!`);
+        setNewConditionTranslations({
+          amharic: { translated_name: "", translated_description: "" },
+          oromo: { translated_name: "", translated_description: "" }
+        });
+        setErrors(prev => ({ ...prev, newCondition: null, newConditionAmharicName: null, newConditionOromoName: null }));
+        alert(`✅ Condition "${createdCondition.name}" created successfully with translations!`);
       }
     } catch (error) {
       console.error('Failed to create condition:', error);
@@ -1347,18 +1378,20 @@ const AddHerbModal = ({ isOpen, onClose, onSave }) => {
     }));
   };
 
-  // Handle condition translation changes
-  const handleConditionTranslationChange = (conditionId, language, field, value) => {
-    setConditionTranslations(prev => ({
+  // Handle NEW condition translation changes
+  const handleNewConditionTranslationChange = (language, field, value) => {
+    setNewConditionTranslations(prev => ({
       ...prev,
-      [conditionId]: {
-        ...prev[conditionId],
-        [language]: {
-          ...prev[conditionId]?.[language],
-          [field]: value
-        }
+      [language]: {
+        ...prev[language],
+        [field]: value
       }
     }));
+    
+    // Clear errors when user types
+    if (errors[`newCondition${language === 'amharic' ? 'AmharicName' : 'OromoName'}`]) {
+      setErrors(prev => ({ ...prev, [`newCondition${language === 'amharic' ? 'AmharicName' : 'OromoName'}`]: null }));
+    }
   };
 
   // Add condition to the array
@@ -1368,7 +1401,6 @@ const AddHerbModal = ({ isOpen, onClose, onSave }) => {
       return;
     }
     
-    // Use string IDs for consistency
     if (formData.conditionIds.includes(selectedConditionId)) {
       setErrors(prev => ({ ...prev, conditionIds: "This condition is already added" }));
       return;
@@ -1454,7 +1486,6 @@ const AddHerbModal = ({ isOpen, onClose, onSave }) => {
       }
       return null;
     } catch (error) {
-      // Handle 501 gracefully - endpoint not implemented
       if (error.response?.status === 501) {
         console.warn('⚠️ Image upload endpoint not implemented yet (501). Image will be added later.');
         return null;
@@ -1469,7 +1500,6 @@ const AddHerbModal = ({ isOpen, onClose, onSave }) => {
     const token = localStorage.getItem('token');
     const translationPromises = [];
 
-    // Save Amharic translation
     if (translations.amharic.translated_name || translations.amharic.translated_uses || 
         translations.amharic.translated_preparation || translations.amharic.translated_safety) {
       translationPromises.push(
@@ -1493,7 +1523,6 @@ const AddHerbModal = ({ isOpen, onClose, onSave }) => {
       );
     }
 
-    // Save Oromo translation
     if (translations.oromo.translated_name || translations.oromo.translated_uses || 
         translations.oromo.translated_preparation || translations.oromo.translated_safety) {
       translationPromises.push(
@@ -1520,63 +1549,7 @@ const AddHerbModal = ({ isOpen, onClose, onSave }) => {
     if (translationPromises.length > 0) {
       const results = await Promise.allSettled(translationPromises);
       const succeeded = results.filter(r => r.status === 'fulfilled').length;
-      const failed = results.filter(r => r.status === 'rejected').length;
-      console.log(`✅ Saved ${succeeded} herb translations (${failed} failed - may be unimplemented endpoints)`);
-    }
-  };
-
-  // Save condition translations with 501 handling
-  const saveConditionTranslations = async () => {
-    const token = localStorage.getItem('token');
-    const translationPromises = [];
-
-    for (const [conditionId, translations] of Object.entries(conditionTranslations)) {
-      // Save Amharic translation
-      if (translations.amharic?.translated_name || translations.amharic?.translated_description) {
-        translationPromises.push(
-          axios.post(`${API_BASE_URL}/condition-translations`, {
-            conditionId: conditionId,
-            language: "AM",
-            translated_name: translations.amharic.translated_name || "",
-            translated_description: translations.amharic.translated_description || ""
-          }, {
-            headers: { Authorization: `Bearer ${token}` }
-          }).catch(error => {
-            if (error.response?.status === 501) {
-              console.warn('⚠️ Condition translations endpoint not implemented yet (501)');
-              return { data: { success: true, message: 'Skipped - endpoint not implemented' } };
-            }
-            throw error;
-          })
-        );
-      }
-
-      // Save Oromo translation
-      if (translations.oromo?.translated_name || translations.oromo?.translated_description) {
-        translationPromises.push(
-          axios.post(`${API_BASE_URL}/condition-translations`, {
-            conditionId: conditionId,
-            language: "OM",
-            translated_name: translations.oromo.translated_name || "",
-            translated_description: translations.oromo.translated_description || ""
-          }, {
-            headers: { Authorization: `Bearer ${token}` }
-          }).catch(error => {
-            if (error.response?.status === 501) {
-              console.warn('⚠️ Condition translations endpoint not implemented yet (501)');
-              return { data: { success: true, message: 'Skipped - endpoint not implemented' } };
-            }
-            throw error;
-          })
-        );
-      }
-    }
-
-    if (translationPromises.length > 0) {
-      const results = await Promise.allSettled(translationPromises);
-      const succeeded = results.filter(r => r.status === 'fulfilled').length;
-      const failed = results.filter(r => r.status === 'rejected').length;
-      console.log(`✅ Saved ${succeeded} condition translations (${failed} failed - may be unimplemented endpoints)`);
+      console.log(`✅ Saved ${succeeded} herb translations`);
     }
   };
 
@@ -1590,17 +1563,12 @@ const AddHerbModal = ({ isOpen, onClose, onSave }) => {
     setUploadProgress(0);
 
     try {
-      // Use string IDs for all condition handling
       const conditionIdsArray = [...formData.conditionIds];
       console.log('📋 Selected condition IDs:', conditionIdsArray);
-      const invalidConditions = conditionIdsArray.filter(id => !conditions.find(c => String(c.id) === String(id)));
-      if (invalidConditions.length > 0) {
-        throw new Error(`Invalid condition IDs: ${invalidConditions.join(', ')}`);
-      }
-      const selectedConditions = conditions.filter(c => conditionIdsArray.includes(String(c.id)) || conditionIdsArray.includes(c.id));
+      
+      const selectedConditions = conditions.filter(c => conditionIdsArray.includes(c.id));
       console.log('📋 Selected conditions details:', selectedConditions.map(c => ({ id: c.id, name: c.name })));
       
-      // Create herb
       const herbData = {
         name: formData.name.trim(),
         scientificName: formData.scientificName.trim(),
@@ -1618,10 +1586,7 @@ const AddHerbModal = ({ isOpen, onClose, onSave }) => {
       
       let finalHerb = { ...createdHerb };
       let imageUrl = null;
-      let imageUploadFailed = false;
-      let translationFailed = false;
 
-      // Upload image AFTER herb is created (skip if endpoint not available)
       if (formData.image && createdHerb.id) {
         setIsUploadingImage(true);
         setUploadProgress(30);
@@ -1636,40 +1601,21 @@ const AddHerbModal = ({ isOpen, onClose, onSave }) => {
           if (imageUrl) {
             finalHerb.imageUrl = imageUrl;
             console.log('✅ Image URL:', imageUrl);
-          } else if (formData.image) {
-            imageUploadFailed = true;
           }
         } catch (uploadError) {
           console.error('❌ Image upload failed:', uploadError);
-          imageUploadFailed = true;
         } finally {
           setIsUploadingImage(false);
         }
       }
 
-      // Save translations (skip if endpoints not available)
-      try {
-        await saveTranslations(createdHerb.id);
-      } catch (translationError) {
-        console.warn('⚠️ Translation save failed:', translationError.message);
-        translationFailed = true;
-      }
-      
-      // Save condition translations (skip if endpoints not available)
-      try {
-        await saveConditionTranslations();
-      } catch (conditionTranslationError) {
-        console.warn('⚠️ Condition translation save failed:', conditionTranslationError.message);
-        translationFailed = true;
-      }
+      await saveTranslations(createdHerb.id);
 
-      // Add selected conditions info to the herb object
       const herbWithConditions = {
         ...finalHerb,
         conditionIds: conditionIdsArray,
         selectedConditions: selectedConditions,
-        translations: translations,
-        conditionTranslations: conditionTranslations
+        translations: translations
       };
 
       if (onSave) {
@@ -1677,15 +1623,9 @@ const AddHerbModal = ({ isOpen, onClose, onSave }) => {
         onSave(herbWithConditions);
       }
 
-      // Build success message
       let successMessage = `✅ Herb "${formData.name}" added successfully with ${conditionIdsArray.length} condition(s)!`;
       if (imageUrl) {
         successMessage += `\n📸 Image uploaded successfully.`;
-      } else if (imageUploadFailed) {
-        successMessage += `\n⚠️ Image upload failed (endpoint not available). You can add the image later.`;
-      }
-      if (translationFailed) {
-        successMessage += `\n⚠️ Some translations were not saved (endpoints not available). You can add them later.`;
       }
       
       alert(successMessage);
@@ -1728,7 +1668,10 @@ const AddHerbModal = ({ isOpen, onClose, onSave }) => {
       amharic: { translated_name: "", translated_uses: "", translated_preparation: "", translated_safety: "", source: "" },
       oromo: { translated_name: "", translated_uses: "", translated_preparation: "", translated_safety: "", source: "" }
     });
-    setConditionTranslations({});
+    setNewConditionTranslations({
+      amharic: { translated_name: "", translated_description: "" },
+      oromo: { translated_name: "", translated_description: "" }
+    });
     setSelectedConditionId("");
     setShowNewConditionForm(false);
     setNewCondition({ name: '', description: '' });
@@ -1737,12 +1680,10 @@ const AddHerbModal = ({ isOpen, onClose, onSave }) => {
     setUploadProgress(0);
   };
 
-  // Get the list of selected condition objects
-  const selectedConditionObjects = conditions.filter(c => formData.conditionIds.includes(String(c.id)) || formData.conditionIds.includes(c.id));
+  const selectedConditionObjects = conditions.filter(c => formData.conditionIds.includes(c.id));
 
   if (!isOpen) return null;
 
-  // ✅ FIX: Check if document.body exists before creating portal
   const portalTarget = document.body;
   if (!portalTarget) return null;
 
@@ -1806,9 +1747,7 @@ const AddHerbModal = ({ isOpen, onClose, onSave }) => {
                     className="w-full border border-gray-300 rounded-lg p-2 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
                   />
                 </div>
-                {errors.image && (
-                  <p className="text-red-500 text-xs mt-1">{errors.image}</p>
-                )}
+                {errors.image && <p className="text-red-500 text-xs mt-1">{errors.image}</p>}
                 
                 {formData.imagePreview && (
                   <div className="mt-3">
@@ -1851,7 +1790,7 @@ const AddHerbModal = ({ isOpen, onClose, onSave }) => {
                 {errors.scientificName && <p className="text-red-500 text-xs mt-1">{errors.scientificName}</p>}
               </div>
 
-              {/* Multiple Conditions Selection */}
+              {/* Multiple Conditions Selection - NO TRANSLATION REQUIRED FOR SELECTION */}
               <div>
                 <label className="block text-sm font-medium text-gray-700">
                   Conditions <span className="text-red-500">*</span>
@@ -1895,7 +1834,7 @@ const AddHerbModal = ({ isOpen, onClose, onSave }) => {
                   >
                     <option value="">Select a condition to add...</option>
                     {conditions
-                      .filter(condition => !formData.conditionIds.includes(String(condition.id)) && !formData.conditionIds.includes(condition.id))
+                      .filter(condition => !formData.conditionIds.includes(condition.id))
                       .map((condition) => (
                         <option key={condition.id} value={condition.id}>
                           {condition.name} (ID: {condition.id})
@@ -1906,12 +1845,11 @@ const AddHerbModal = ({ isOpen, onClose, onSave }) => {
                     <Plus className="h-4 w-4" />
                   </Button>
                   
-                  {/* Delete button for selected condition - DELETES ONLY THE SELECTED ONE */}
                   {selectedConditionId && (
                     <Button 
                       type="button" 
                       onClick={() => {
-                        const condition = conditions.find(c => String(c.id) === String(selectedConditionId));
+                        const condition = conditions.find(c => c.id === selectedConditionId);
                         if (condition) {
                           handleDeleteCondition(condition.id, condition.name);
                           setSelectedConditionId('');
@@ -1936,15 +1874,17 @@ const AddHerbModal = ({ isOpen, onClose, onSave }) => {
                 </button>
                 
                 {showNewConditionForm && (
-                  <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                    <h4 className="text-sm font-medium text-blue-800 mb-2 flex items-center gap-2">
+                  <div className="mt-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <h4 className="text-sm font-medium text-blue-800 mb-3 flex items-center gap-2">
                       <Sparkles className="h-4 w-4" />
                       Create New Condition
                     </h4>
-                    <div className="space-y-3">
+                    
+                    {/* Basic Condition Info */}
+                    <div className="space-y-3 mb-4">
                       <div>
                         <label className="block text-xs font-medium text-gray-700 mb-1">
-                          Condition Name <span className="text-red-500">*</span>
+                          Condition Name (English) <span className="text-red-500">*</span>
                         </label>
                         <input
                           type="text"
@@ -1956,7 +1896,7 @@ const AddHerbModal = ({ isOpen, onClose, onSave }) => {
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-gray-700 mb-1">
-                          Description (Optional)
+                          Description (English - Optional)
                         </label>
                         <textarea
                           value={newCondition.description}
@@ -1966,15 +1906,85 @@ const AddHerbModal = ({ isOpen, onClose, onSave }) => {
                           className="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none resize-none"
                         />
                       </div>
-                      {errors.newCondition && <p className="text-red-500 text-xs">{errors.newCondition}</p>}
-                      <div className="flex gap-2">
-                        <Button type="button" onClick={handleCreateCondition} disabled={isCreatingCondition} className="flex-1 bg-blue-600 hover:bg-blue-700">
-                          {isCreatingCondition ? "Creating..." : "Create Condition"}
-                        </Button>
-                        <Button type="button" onClick={() => { setShowNewConditionForm(false); setNewCondition({ name: '', description: '' }); setErrors(prev => ({ ...prev, newCondition: null })); }} variant="outline" className="flex-1">
-                          Cancel
-                        </Button>
+                    </div>
+
+                    {/* REQUIRED Translations for New Condition */}
+                    <div className="border-t border-blue-200 pt-3 mt-2">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Languages className="h-4 w-4 text-blue-700" />
+                        <span className="text-sm font-medium text-blue-800">Translations (Required)</span>
+                        <span className="text-xs text-blue-600">* Must be filled for both languages</span>
                       </div>
+
+                      {/* Language Tabs */}
+                      <div className="flex gap-2 mb-3 border-b border-blue-200">
+                        {languages.map(lang => (
+                          <button
+                            key={lang.code}
+                            type="button"
+                            onClick={() => setActiveNewConditionTranslationLang(lang.code)}
+                            className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                              activeNewConditionTranslationLang === lang.code
+                                ? 'border-b-2 border-blue-500 text-blue-600'
+                                : 'text-gray-500 hover:text-gray-700'
+                            }`}
+                          >
+                            {lang.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Translated Name <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={newConditionTranslations[activeNewConditionTranslationLang].translated_name}
+                            onChange={(e) => handleNewConditionTranslationChange(activeNewConditionTranslationLang, 'translated_name', e.target.value)}
+                            placeholder={`Enter condition name in ${languages.find(l => l.code === activeNewConditionTranslationLang)?.label}`}
+                            className="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                          />
+                          {errors.newConditionAmharicName && activeNewConditionTranslationLang === 'amharic' && (
+                            <p className="text-red-500 text-xs mt-1">{errors.newConditionAmharicName}</p>
+                          )}
+                          {errors.newConditionOromoName && activeNewConditionTranslationLang === 'oromo' && (
+                            <p className="text-red-500 text-xs mt-1">{errors.newConditionOromoName}</p>
+                          )}
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            Translated Description (Optional)
+                          </label>
+                          <input
+                            type="text"
+                            value={newConditionTranslations[activeNewConditionTranslationLang].translated_description}
+                            onChange={(e) => handleNewConditionTranslationChange(activeNewConditionTranslationLang, 'translated_description', e.target.value)}
+                            placeholder={`Enter description in ${languages.find(l => l.code === activeNewConditionTranslationLang)?.label}`}
+                            className="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {errors.newCondition && <p className="text-red-500 text-xs mt-2">{errors.newCondition}</p>}
+                    
+                    <div className="flex gap-2 mt-4">
+                      <Button type="button" onClick={handleCreateCondition} disabled={isCreatingCondition} className="flex-1 bg-blue-600 hover:bg-blue-700">
+                        {isCreatingCondition ? "Creating..." : "Create Condition with Translations"}
+                      </Button>
+                      <Button type="button" onClick={() => { 
+                        setShowNewConditionForm(false); 
+                        setNewCondition({ name: '', description: '' });
+                        setNewConditionTranslations({
+                          amharic: { translated_name: "", translated_description: "" },
+                          oromo: { translated_name: "", translated_description: "" }
+                        });
+                        setErrors(prev => ({ ...prev, newCondition: null, newConditionAmharicName: null, newConditionOromoName: null }));
+                      }} variant="outline" className="flex-1">
+                        Cancel
+                      </Button>
                     </div>
                   </div>
                 )}
@@ -1987,85 +1997,8 @@ const AddHerbModal = ({ isOpen, onClose, onSave }) => {
                 )}
               </div>
 
-              {/* Condition Translations Section - Only shown when conditions are selected */}
-              {selectedConditionObjects.length > 0 && (
-                <div className="border-t pt-4">
-                  <div className="flex items-center gap-2 mb-4">
-                    <BookOpen className="h-5 w-5 text-emerald-600" />
-                    <h3 className="text-lg font-semibold text-gray-900">Condition Translations</h3>
-                    <span className="text-xs text-gray-500">(Optional - Translate condition names for Amharic and Oromo)</span>
-                  </div>
-
-                  {/* Language Tabs for Conditions */}
-                  <div className="flex gap-2 mb-4 border-b">
-                    {languages.map(lang => (
-                      <button
-                        key={lang.code}
-                        type="button"
-                        onClick={() => setActiveConditionTranslationLang(lang.code)}
-                        className={`px-4 py-2 text-sm font-medium transition-colors ${
-                          activeConditionTranslationLang === lang.code
-                            ? 'border-b-2 border-emerald-500 text-emerald-600'
-                            : 'text-gray-500 hover:text-gray-700'
-                        }`}
-                      >
-                        <Languages className="h-4 w-4 inline mr-1" />
-                        {lang.label}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Condition Translation Forms for each selected condition */}
-                  <div className="space-y-4">
-                    {selectedConditionObjects.map(condition => {
-                      const currentTranslations = conditionTranslations[condition.id]?.[activeConditionTranslationLang] || {};
-                      return (
-                        <div key={condition.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-2">
-                              <h4 className="font-medium text-gray-900">{condition.name}</h4>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteCondition(condition.id, condition.name)}
-                              className="text-red-500 hover:text-red-700 transition-colors p-1 hover:bg-red-50 rounded-lg"
-                              title="Permanently delete this condition from database"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                              <label className="block text-xs font-medium text-gray-700 mb-1">
-                                Translated Name
-                              </label>
-                              <input
-                                type="text"
-                                value={currentTranslations.translated_name || ""}
-                                onChange={(e) => handleConditionTranslationChange(condition.id, activeConditionTranslationLang, 'translated_name', e.target.value)}
-                                placeholder={`${condition.name} in ${languages.find(l => l.code === activeConditionTranslationLang)?.label}`}
-                                className="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-medium text-gray-700 mb-1">
-                                Translated Description
-                              </label>
-                              <input
-                                type="text"
-                                value={currentTranslations.translated_description || ""}
-                                onChange={(e) => handleConditionTranslationChange(condition.id, activeConditionTranslationLang, 'translated_description', e.target.value)}
-                                placeholder={`Description in ${languages.find(l => l.code === activeConditionTranslationLang)?.label}`}
-                                className="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+              {/* NO Condition Translations Section for Selected Conditions from Dropdown */}
+              {/* Translations are only required when creating NEW conditions */}
 
               {/* Main Herb Details */}
               <div>
@@ -2127,7 +2060,6 @@ const AddHerbModal = ({ isOpen, onClose, onSave }) => {
                   <span className="text-xs text-gray-500">(Optional - Add translations for Amharic and Oromo)</span>
                 </div>
 
-                {/* Language Tabs */}
                 <div className="flex gap-2 mb-4 border-b">
                   {languages.map(lang => (
                     <button
@@ -2146,7 +2078,6 @@ const AddHerbModal = ({ isOpen, onClose, onSave }) => {
                   ))}
                 </div>
 
-                {/* Translation Form */}
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Translated Name</label>
@@ -2216,7 +2147,6 @@ const AddHerbModal = ({ isOpen, onClose, onSave }) => {
     </div>
   );
 
-  // ✅ Use createPortal with a safety check
   return ReactDOM.createPortal(modalContent, portalTarget);
 };
 

@@ -362,9 +362,9 @@ const HerbDetail = ({ herb }) => {
                       <p className="text-gray-700">{herbData.safetyWarning}</p>
                     )}
                   </div>
-                  <div className="mt-4 p-4 bg-amber-50 rounded-xl border border-amber-100">
+                  {/* <div className="mt-4 p-4 bg-amber-50 rounded-xl border border-amber-100">
                     <p className="text-sm text-amber-800">Always consult with a healthcare provider before using any herbal remedy.</p>
-                  </div>
+                  </div> */}
                 </div>
               )}
 
@@ -376,7 +376,7 @@ const HerbDetail = ({ herb }) => {
                       <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
                         <p className="text-gray-700 whitespace-pre-line leading-relaxed">{herbData.source}</p>
                       </div>
-                      <p className="text-xs text-gray-500">Information source for this herb's medicinal properties and usage</p>
+                      {/* <p className="text-xs text-gray-500">Information source for this herb's medicinal properties and usage</p> */}
                     </>
                   ) : (
                     <p className="text-gray-500 italic">No source information available.</p>
@@ -514,7 +514,7 @@ const HerbDetail = ({ herb }) => {
                           </div>
                         ))}
                         <div className="mt-3 p-2 bg-amber-50 rounded-lg">
-                          <p className="text-xs text-amber-700">Always consult a healthcare provider before use.</p>
+                          {/* <p className="text-xs text-amber-700">Always consult a healthcare provider before use.</p> */}
                         </div>
                       </div>
                     )}
@@ -619,12 +619,12 @@ const HerbDetail = ({ herb }) => {
           <div className="bg-white rounded-xl sm:rounded-2xl border border-gray-200 p-4 sm:p-6 shadow-sm">
             <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Quick Info</h3>
             <div className="space-y-2 sm:space-y-3">
-              <div className="flex justify-between items-center py-2 border-b border-gray-100">
+              {/* <div className="flex justify-between items-center py-2 border-b border-gray-100">
                 <span className="text-xs sm:text-sm text-gray-600">Status</span>
                 <span className="text-xs sm:text-sm font-medium text-emerald-600 bg-emerald-50 px-2 sm:px-3 py-1 rounded-full">
                   Published
                 </span>
-              </div>
+              </div> */}
               
               <div className="py-2 border-b border-gray-100">
                 <div className="flex items-center gap-2 mb-2">
@@ -682,7 +682,7 @@ const HerbDetail = ({ herb }) => {
           </div>
 
           {/* Source Summary Card */}
-          {herbData.source && herbData.source.trim() !== '' && (
+          {/* {herbData.source && herbData.source.trim() !== '' && (
             <div className="bg-gradient-to-br from-blue-50 to-white rounded-xl sm:rounded-2xl border border-blue-100 p-4 sm:p-6 shadow-sm">
               <div className="flex items-center gap-2 mb-3">
                 <BookOpen className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
@@ -699,7 +699,7 @@ const HerbDetail = ({ herb }) => {
                 View full source →
               </button>
             </div>
-          )}
+          )} */}
         </div>
       </div>
     </div>

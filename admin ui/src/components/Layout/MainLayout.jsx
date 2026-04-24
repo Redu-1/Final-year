@@ -22,7 +22,7 @@ const MainLayout = () => {
         </main>
         
         {/* Footer */}
-        <footer className="bg-white border-t border-gray-200 px-6 py-4">
+        {/* <footer className="bg-white border-t border-gray-200 px-6 py-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
             <div className="text-sm text-gray-600">
               <span className="font-medium text-gray-900">HerbiSense</span> Admin Console v2.4.0
@@ -37,7 +37,7 @@ const MainLayout = () => {
               <a href="#" className="hover:text-emerald-600">Help Center</a>
             </div>
           </div>
-        </footer>
+        </footer> */}
       </div>
     </div>
   );
