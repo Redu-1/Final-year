@@ -143,7 +143,7 @@ const handleSubmit = async (e) => {
     
     // Check if it's a network error
     if (errorMessage.includes('Cannot connect to the server')) {
-      errorMessage = 'Cannot connect to the server. Please make sure the backend is running at http://10.41.248.116:5001';
+      errorMessage = 'Cannot connect to the server. Please make sure the backend is running at http://10.48.136.233:5001/api';
     }
     
     setErrors({ 

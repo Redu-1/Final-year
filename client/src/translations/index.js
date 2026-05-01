@@ -997,6 +997,51 @@ export const translations = {
 'herbs.stats.multi_condition': 'Multi-condition Herbs',
 'herbs.stats.avg_conditions': 'Avg. Conditions/Herb',
 'herbs.stats.last_sync': 'Last Sync',
+"herb.detail.back": "Back",
+  "herb.detail.added": "Added",
+  "herb.detail.recently": "Recently",
+  "herb.detail.today": "Today",
+  
+  "herb.detail.tabs.description": "Description",
+  "herb.detail.tabs.preparation": "Preparation",
+  "herb.detail.tabs.safety": "Safety",
+  "herb.detail.tabs.source": "Source",
+  "herb.detail.tabs.reviews": "Reviews",
+  
+  "herb.detail.quick_info": "Quick Info",
+  "herb.detail.conditions_treated": "Conditions Treated",
+  "herb.detail.general_wellness": "General Wellness",
+  "herb.detail.last_updated": "Last Updated",
+  
+  "herb.detail.rating_summary": "Rating Summary",
+  "herb.detail.based_on": "Based on",
+  "herb.detail.review": "review",
+  "herb.detail.reviews": "reviews",
+  "herb.detail.rate_button": "Rate this herb →",
+  
+  "herb.detail.rating.update": "Update Your Rating",
+  "herb.detail.rating.rate": "Rate this Herb",
+  "herb.detail.rating.your_rating": "Your Rating",
+  "herb.detail.rating.placeholder": "Share your experience...",
+  "herb.detail.rating.submitting": "Submitting...",
+  "herb.detail.rating.update_btn": "Update Rating",
+  "herb.detail.rating.submit_btn": "Submit Rating",
+  "herb.detail.rating.user_reviews": "User Reviews",
+  "herb.detail.rating.loading": "Loading reviews...",
+  "herb.detail.rating.no_reviews": "No reviews yet. Be the first!",
+  "herb.detail.rating.no_reviews_mobile": "No reviews yet.",
+  
+  "herb.detail.alert.login": "Please login to rate this herb",
+  "herb.detail.alert.select_rating": "Please select a rating",
+  "herb.detail.alert.success": "Rating submitted successfully!",
+  "herb.detail.alert.failed": "Failed to submit rating",
+  "herb.detail.alert.network": "Network error. Please try again.",
+  
+  "herb.detail.source.no_info": "No source information available.",
+  
+  "herb.detail.preparation.title": "Preparation",
+  "herb.detail.safety.title": "Safety"
+
 
   },
   
@@ -2001,6 +2046,51 @@ export const translations = {
 'herbs.stats.avg_conditions': 'አማካይ በሽታዎች/እፅዋት',
 'herbs.stats.last_sync': 'የመጨረሻ ማመሳሰል',
 
+ "herb.detail.back": "ተመለስ",
+  "herb.detail.added": "ተጨምሯል",
+  "herb.detail.recently": "በቅርቡ",
+  "herb.detail.today": "ዛሬ",
+  
+  "herb.detail.tabs.description": "መግለጫ",
+  "herb.detail.tabs.preparation": "ዝግጅት",
+  "herb.detail.tabs.safety": "ደህንነት",
+  "herb.detail.tabs.source": "ምንጭ",
+  "herb.detail.tabs.reviews": "ግምገማዎች",
+  
+  "herb.detail.quick_info": "ፈጣን መረጃ",
+  "herb.detail.conditions_treated": "የሚታከሙ በሽታዎች",
+  "herb.detail.general_wellness": "አጠቃላይ ጤና",
+  "herb.detail.last_updated": "የመጨረሻ ዝማኔ",
+  
+  "herb.detail.rating_summary": "የደረጃ ማጠቃለያ",
+  "herb.detail.based_on": "በ",
+  "herb.detail.review": "ግምገማ",
+  "herb.detail.reviews": "ግምገማዎች",
+  "herb.detail.rate_button": "ይህን ዕፅዋት ደረጃ ስጡ →",
+  
+  "herb.detail.rating.update": "ደረጃዎን ያዘምኑ",
+  "herb.detail.rating.rate": "ይህን ዕፅዋት ደረጃ ስጡ",
+  "herb.detail.rating.your_rating": "የእርስዎ ደረጃ",
+  "herb.detail.rating.placeholder": "ልምድዎን ያጋሩ...",
+  "herb.detail.rating.submitting": "በማስገባት ላይ...",
+  "herb.detail.rating.update_btn": "ደረጃ አዘምን",
+  "herb.detail.rating.submit_btn": "ደረጃ አስገባ",
+  "herb.detail.rating.user_reviews": "የተጠቃሚ ግምገማዎች",
+  "herb.detail.rating.loading": "ግምገማዎች በመጫን ላይ...",
+  "herb.detail.rating.no_reviews": "እስካሁን ምንም ግምገማ የለም። የመጀመሪያ ይሁኑ!",
+  "herb.detail.rating.no_reviews_mobile": "እስካሁን ምንም ግምገማ የለም።",
+  
+  "herb.detail.alert.login": "እባክዎ ይህን ዕፅዋት ለመገምገም ይግቡ",
+  "herb.detail.alert.select_rating": "እባክዎ ደረጃ ይምረጡ",
+  "herb.detail.alert.success": "ደረጃዎ በተሳካ ሁኔታ ቀርቧል!",
+  "herb.detail.alert.failed": "ደረጃ ማስገባት አልተሳካም",
+  "herb.detail.alert.network": "የአውታረ መረብ ችግር። እባክዎ እንደገና ይሞክሩ።",
+  
+  "herb.detail.source.no_info": "ምንም የምንጭ መረጃ የለም።",
+  
+  "herb.detail.preparation.title": "ዝግጅት",
+  "herb.detail.safety.title": "ደህንነት"
+
   },
   
   OM: {
@@ -3003,6 +3093,51 @@ export const translations = {
 'herbs.stats.multi_condition': 'Biqiltoota Dhukkuboota Hedduu Fayyisan',
 'herbs.stats.avg_conditions': 'Giddugaleessa Dhukkuboota/Biqiltuu',
 'herbs.stats.last_sync': 'Waliigaluu Dhumaa',
+
+ "herb.detail.back": "Deebi'i",
+  "herb.detail.added": "Iddede",
+  "herb.detail.recently": "Dhiyoo",
+  "herb.detail.today": "Har'a",
+  
+  "herb.detail.tabs.description": "Ibsa",
+  "herb.detail.tabs.preparation": "Qopheessuu",
+  "herb.detail.tabs.safety": "Nageenya",
+  "herb.detail.tabs.source": "Lakkaddaa",
+  "herb.detail.tabs.reviews": "Madaallii",
+  
+  "herb.detail.quick_info": "Odeeffannoo Dafaa",
+  "herb.detail.conditions_treated": "Dhukkuboota Fayyisu",
+  "herb.detail.general_wellness": "Fayyaa Waliigalaa",
+  "herb.detail.last_updated": "Yeroo Dhumaa Haaromsame",
+  
+  "herb.detail.rating_summary": "Cuunfaa Sadarkaa",
+  "herb.detail.based_on": "Kan Irratti Hundaa'e",
+  "herb.detail.review": "madaallii",
+  "herb.detail.reviews": "madaalliiwwan",
+  "herb.detail.rate_button": "Herbala kana madaali →",
+  
+  "herb.detail.rating.update": "Sadarkaa Keessan Fooyyessi",
+  "herb.detail.rating.rate": "Herbala Kana Madaali",
+  "herb.detail.rating.your_rating": "Sadarkaa Keessan",
+  "herb.detail.rating.placeholder": "Muuxannoo keessan qoodadhaa...",
+  "herb.detail.rating.submitting": "Ergaa jira...",
+  "herb.detail.rating.update_btn": "Sadarkaa Fooyyessi",
+  "herb.detail.rating.submit_btn": "Sadarkaa Ergi",
+  "herb.detail.rating.user_reviews": "Madaallii Fayyadamaa",
+  "herb.detail.rating.loading": "Madaalliiwwan fe'aa jira...",
+  "herb.detail.rating.no_reviews": "Madaallii hin jiru. Kan jalqabaa ta'aa!",
+  "herb.detail.rating.no_reviews_mobile": "Madaallii hin jiru.",
+  
+  "herb.detail.alert.login": "Mee herbala kana madaaluuf seeni",
+  "herb.detail.alert.select_rating": "Sadarkaa filadhu",
+  "herb.detail.alert.success": "Sadarkaan keessan milkaa'inaan ergame!",
+  "herb.detail.alert.failed": "Sadarkaa erguu hin danda'ame",
+  "herb.detail.alert.network": "Dogoggora neetworkii. Irra deebi'ii yaali.",
+  
+  "herb.detail.source.no_info": "Odeeffannoo lakkaddaa hin jiru.",
+  
+  "herb.detail.preparation.title": "Qopheessuu",
+  "herb.detail.safety.title": "Nageenya"
 
 }
 };

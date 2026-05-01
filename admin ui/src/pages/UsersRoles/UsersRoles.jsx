@@ -12,53 +12,67 @@ const UsersRoles = () => {
   const [error, setError] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Try to fetch existing users from available endpoints
-  const fetchExistingUsers = async () => {
+  // Fetch admins from the correct endpoint
+  const fetchAdmins = async () => {
     setIsRefreshing(true);
+    setError(null);
+    
     try {
       const token = localStorage.getItem('herbisense_token') || localStorage.getItem('token');
       
-      // Try multiple possible endpoints to get users
-      const endpoints = [
-        `${API_BASE_URL}/users`,
-        `${API_BASE_URL}/admin/users`,
-        `${API_BASE_URL}/admin/list`
-      ];
+      // ✅ FIX: Use the correct endpoint from Swagger
+      const endpoint = `${API_BASE_URL}/admin`;
       
-      for (const endpoint of endpoints) {
-        try {
-          console.log(`📤 Trying to fetch from: ${endpoint}`);
-          const response = await axios.get(endpoint, {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            }
-          });
-          
-          if (response.data && response.data.success && Array.isArray(response.data.data)) {
-            const admins = response.data.data.filter(user => user.role === 'admin');
-            if (admins.length > 0) {
-              setUsers(admins);
-              console.log(`✅ Found ${admins.length} admins from ${endpoint}`);
-              return;
-            }
-          } else if (Array.isArray(response.data)) {
-            const admins = response.data.filter(user => user.role === 'admin');
-            if (admins.length > 0) {
-              setUsers(admins);
-              console.log(`✅ Found ${admins.length} admins from ${endpoint}`);
-              return;
-            }
-          }
-        } catch (err) {
-          console.log(`Endpoint ${endpoint} failed:`, err.message);
+      console.log(`📤 Fetching admins from: ${endpoint}`);
+      
+      const response = await axios.get(endpoint, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
+      });
+      
+      console.log('📦 API Response:', response.data);
+      
+      // Handle different response structures
+      let adminsList = [];
+      
+      if (response.data && response.data.success && Array.isArray(response.data.data)) {
+        // Format: { success: true, data: [...] }
+        adminsList = response.data.data;
+      } else if (Array.isArray(response.data)) {
+        // Format: direct array
+        adminsList = response.data;
+      } else if (response.data && response.data.data && Array.isArray(response.data.data)) {
+        // Format: { data: [...] }
+        adminsList = response.data.data;
       }
       
-      // If no endpoint works, show message
-      console.log('No GET endpoint available to fetch existing admins');
+      // Filter for admin role if role field exists
+      const admins = adminsList.filter(user => 
+        user.role === 'admin' || 
+        user.role === 'ADMIN' ||
+        user.userType === 'admin' ||
+        !user.role // If no role field, assume they're admins
+      );
+      
+      setUsers(admins);
+      console.log(`✅ Found ${admins.length} admins`);
+      
+      if (admins.length === 0 && adminsList.length > 0) {
+        console.log('📋 Users found but none have admin role:', adminsList.map(u => ({ name: u.fullName, role: u.role })));
+      }
+      
     } catch (err) {
-      console.error('Error fetching users:', err);
+      console.error('❌ Error fetching admins:', err);
+      
+      if (err.response?.status === 401) {
+        setError('Unauthorized. Please log in again.');
+      } else if (err.response?.status === 404) {
+        setError('Admin endpoint not found. Please check the API URL.');
+      } else {
+        setError(err.response?.data?.message || err.message || 'Failed to fetch admins');
+      }
     } finally {
       setIsRefreshing(false);
     }
@@ -88,6 +102,7 @@ const UsersRoles = () => {
       
       console.log('📤 Creating admin:', adminData);
       
+      // ✅ FIX: Use the correct endpoint from Swagger
       const response = await axios.post(`${API_BASE_URL}/admin/create-admin`, adminData, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -98,16 +113,8 @@ const UsersRoles = () => {
       console.log('✅ Admin created:', response.data);
       
       if (response.status === 201 || response.data?.success) {
-        const newAdmin = {
-          id: Date.now(),
-          fullName: fullName.trim(),
-          email: email.trim(),
-          role: 'admin',
-          status: 'active',
-          createdAt: new Date().toISOString()
-        };
-        
-        setUsers(prev => [newAdmin, ...prev]);
+        // Refresh the list after creation
+        await fetchAdmins();
         alert('✅ Admin created successfully!');
       } else {
         alert(response.data?.message || 'Failed to create admin');
@@ -117,8 +124,6 @@ const UsersRoles = () => {
       
       if (err.response?.data?.message === 'User already exists') {
         alert('⚠️ This email is already registered. Please use a different email.');
-        // Try to fetch existing users
-        await fetchExistingUsers();
       } else {
         alert(err.response?.data?.message || err.message || 'Failed to create admin');
       }
@@ -127,41 +132,48 @@ const UsersRoles = () => {
     }
   };
 
-  // Delete admin from local state
+  // Delete admin
   const handleDeleteAdmin = async (adminId, adminName) => {
     if (!confirm(`Delete ${adminName}? This action cannot be undone.`)) return;
     
     try {
       const token = localStorage.getItem('herbisense_token') || localStorage.getItem('token');
       
-      // Try to delete from backend if endpoint exists
-      try {
-        await axios.delete(`${API_BASE_URL}/admin/${adminId}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-      } catch (deleteErr) {
-        console.warn('Backend delete failed or endpoint not found, removing from local state only');
-      }
+      // ✅ Try the correct delete endpoint
+      const response = await axios.delete(`${API_BASE_URL}/admin/${adminId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
       
-      setUsers(prev => prev.filter(user => user.id !== adminId));
-      alert('✅ Admin removed successfully');
+      if (response.data?.success) {
+        await fetchAdmins(); // Refresh the list
+        alert('✅ Admin removed successfully');
+      } else {
+        throw new Error(response.data?.message || 'Delete failed');
+      }
     } catch (err) {
       console.error('Error deleting admin:', err);
-      alert('Failed to delete admin');
+      
+      // If delete endpoint fails, remove from local state only
+      if (err.response?.status === 404) {
+        setUsers(prev => prev.filter(user => user.id !== adminId));
+        alert('✅ Admin removed from local list (delete endpoint not available)');
+      } else {
+        alert(err.response?.data?.message || err.message || 'Failed to delete admin');
+      }
     }
   };
 
   // Manual refresh
   const handleRefresh = async () => {
-    await fetchExistingUsers();
+    await fetchAdmins();
   };
 
-  // Load existing users on component mount
+  // Load admins on component mount
   useEffect(() => {
-    fetchExistingUsers();
+    fetchAdmins();
   }, []);
 
   return (
@@ -192,40 +204,40 @@ const UsersRoles = () => {
         </div>
       </div>
 
-      {/* Info Box - Show if no GET endpoint but admins might exist */}
-      {users.length === 0 && !isLoading && !isRefreshing && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+      {/* Error Message */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <div className="flex items-start gap-3">
-            <Users className="h-5 w-5 text-blue-600 mt-0.5" />
+            <Shield className="h-5 w-5 text-red-600 mt-0.5" />
             <div>
-              <p className="text-sm text-blue-800 font-medium">No admins displayed</p>
-              <p className="text-sm text-blue-700 mt-1">
-                Admins are stored in the database but there's no GET endpoint to fetch them.
-                When you create a new admin with a unique email, it will appear here.
-              </p>
-              <p className="text-sm text-blue-700 mt-2">
-                <strong>Note:</strong> The email <code className="bg-blue-100 px-1 rounded">creator@herbisense.com</code> already exists in the database.
-                Try creating an admin with a different email address.
-              </p>
+              <p className="text-sm text-red-800 font-medium">Error loading admins</p>
+              <p className="text-sm text-red-700 mt-1">{error}</p>
+              <button
+                onClick={fetchAdmins}
+                className="mt-2 text-sm text-red-600 hover:text-red-700 font-medium"
+              >
+                Try again
+              </button>
             </div>
           </div>
         </div>
       )}
 
       {/* Loading State */}
-      {isLoading && (
+      {(isLoading || isRefreshing) && (
         <div className="flex justify-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
         </div>
       )}
 
       {/* Admins List */}
-      {!isLoading && (
+      {!isLoading && !isRefreshing && (
         <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-          {users.length === 0 ? (
+          {users.length === 0 && !error ? (
             <div className="text-center py-12">
               <Shield className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-500">No admins added yet</p>
+              <p className="text-gray-500">No admins found</p>
+              <p className="text-xs text-gray-400 mt-1">Click "Create Admin" to add one</p>
               <button
                 onClick={handleCreateAdmin}
                 className="mt-3 text-sm text-emerald-600 hover:text-emerald-700 font-medium"
@@ -233,7 +245,7 @@ const UsersRoles = () => {
                 Create your first admin
               </button>
             </div>
-          ) : (
+          ) : users.length > 0 ? (
             <div className="divide-y divide-gray-200">
               {users.map((admin) => (
                 <div key={admin.id} className="p-4 hover:bg-gray-50 transition-colors">
@@ -250,7 +262,7 @@ const UsersRoles = () => {
                             ADMIN
                           </span>
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                            Active
+                            {(admin.status || 'Active').charAt(0).toUpperCase() + (admin.status || 'active').slice(1).toLowerCase()}
                           </span>
                         </div>
                       </div>
@@ -266,12 +278,12 @@ const UsersRoles = () => {
                 </div>
               ))}
             </div>
-          )}
+          ) : null}
         </div>
       )}
 
       {/* Stats */}
-      {!isLoading && users.length > 0 && (
+      {!isLoading && !isRefreshing && users.length > 0 && (
         <div className="text-sm text-gray-600">
           Total: {users.length} admin{users.length !== 1 ? 's' : ''}
         </div>

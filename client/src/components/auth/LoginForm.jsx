@@ -235,13 +235,13 @@ const LoginForm = () => {
                     <Lock className="inline h-4 w-4 mr-2 text-emerald-500" />
                     {t('login.password.label') || 'Password'}
                   </label>
-                  <button
+                  {/* <button
                     type="button"
                     onClick={handleForgotPassword}
                     className="text-sm text-emerald-600 hover:text-emerald-700 font-medium"
                   >
                     {t('login.password.forgot') || 'Forgot Password?'}
-                  </button>
+                  </button> */}
                 </div>
                 <div className="relative">
                   <input
@@ -273,7 +273,7 @@ const LoginForm = () => {
               </div>
 
               {/* Remember Me */}
-              <div className="flex items-center">
+              {/* <div className="flex items-center">
                 <input
                   type="checkbox"
                   name="rememberMe"
@@ -285,7 +285,7 @@ const LoginForm = () => {
                 <label htmlFor="rememberMe" className="ml-3 text-sm text-gray-700">
                   {t('login.remember.label') || 'Remember me for 30 days'}
                 </label>
-              </div>
+              </div> */}
 
               {/* Submit Button */}
               <Button

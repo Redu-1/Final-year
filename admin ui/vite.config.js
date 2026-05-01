@@ -1,43 +1,18 @@
-// import { defineConfig } from 'vite'
-// import react from '@vitejs/plugin-react'
-// import tailwindcss from '@tailwindcss/vite'
-
-// // https://vite.dev/config/
-// export default defineConfig({
-//   plugins: [react()
-// , tailwindcss()
-//   ],
-// })
-
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
-  plugins: [
-    react(),
-    tailwindcss(),  // Keep this if properly installed
-  ],
+  plugins: [react(), tailwindcss()],
   server: {
-    port: 5174,
+    host: '0.0.0.0',    // Allow network access
+    port: 5174,          // Different port for admin
     open: true,
     proxy: {
       '/api': {
-        target: 'https://herbisense-api.onrender.com',
+        target: 'http://192.168.137.27:5001',  // Same backend
         changeOrigin: true,
         secure: false
-      }
-    }
-  },
-  build: {
-    outDir: 'dist',
-    sourcemap: false,
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router-dom'],
-          ui: ['lucide-react', 'react-hot-toast']
-        }
       }
     }
   }

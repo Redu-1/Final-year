@@ -3,8 +3,8 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { 
   Leaf, ChevronLeft, Calendar, 
-  AlertCircle, Clock, Droplets, 
-  Flame, Shield, Zap, CheckCircle,
+  AlertCircle, Clock, 
+  CheckCircle,
   FlaskConical, AlertTriangle, Eye,
   BookOpen, Layers, Activity, Bug, Pill, Flower2,
   Star, Send, User, ThumbsUp, MessageCircle,
@@ -43,13 +43,12 @@ const HerbDetail = ({ herb }) => {
   // Use real herb data
   const herbData = {
     id: herb.id,
-    name: herb.name || 'Unknown Herb',
+    name: herb.name || t('herb.detail.unknown_herb'),
     scientificName: herb.scientificName || herb.scientific_name || '',
-    description: herb.description || 'No description available',
-    preparation: herb.preparation || 'No preparation information available',
-    safetyWarning: herb.safetyWarning || herb.safety_warning || 'No safety information available',
+    description: herb.description || t('herb.detail.no_description'),
+    preparation: herb.preparation || t('herb.detail.no_preparation'),
+    safetyWarning: herb.safetyWarning || herb.safety_warning || t('herb.detail.no_safety'),
     source: herb.source || '',
-    views: herb.views || 0,
     createdAt: herb.createdAt || herb.created_at,
     updatedAt: herb.updatedAt || herb.updated_at,
     conditionIds: herb.conditionIds || [],
@@ -77,10 +76,10 @@ const HerbDetail = ({ herb }) => {
   const getConditionIcon = (conditionName) => {
     const name = conditionName?.toLowerCase() || '';
     if (name.includes('acne')) return Bug;
-    if (name.includes('inflammation') || name.includes('inflammatory')) return Flame;
+    if (name.includes('inflammation') || name.includes('inflammatory')) return Activity;
     if (name.includes('rash')) return Activity;
-    if (name.includes('skin')) return Shield;
-    if (name.includes('chebt')) return Zap;
+    if (name.includes('skin')) return Activity;
+    if (name.includes('chebt')) return Activity;
     if (name.includes('hb')) return Pill;
     return Flower2;
   };
@@ -131,11 +130,11 @@ const HerbDetail = ({ herb }) => {
   // Submit rating
   const submitRating = async () => {
     if (!user) {
-      alert('Please login to rate this herb');
+      alert(t('herb.detail.alert.login'));
       return;
     }
     if (ratingValue === 0) {
-      alert('Please select a rating');
+      alert(t('herb.detail.alert.select_rating'));
       return;
     }
     setIsSubmitting(true);
@@ -153,17 +152,17 @@ const HerbDetail = ({ herb }) => {
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
-          alert(data.message || 'Rating submitted successfully!');
+          alert(data.message || t('herb.detail.alert.success'));
           setComment('');
           await fetchRatings();
         }
       } else {
         const error = await response.json().catch(() => ({}));
-        alert(error.message || `Failed to submit rating`);
+        alert(error.message || t('herb.detail.alert.failed'));
       }
     } catch (error) {
       console.error('Error submitting rating:', error);
-      alert('Network error. Please try again.');
+      alert(t('herb.detail.alert.network'));
     } finally {
       setIsSubmitting(false);
     }
@@ -226,20 +225,13 @@ const HerbDetail = ({ herb }) => {
     );
   };
 
-  const benefits = [
-    { icon: Flame, label: 'Anti-inflammatory', color: 'text-orange-500', bg: 'bg-orange-50' },
-    { icon: Droplets, label: 'Hydrating', color: 'text-blue-500', bg: 'bg-blue-50' },
-    { icon: Shield, label: 'Protective', color: 'text-emerald-500', bg: 'bg-emerald-50' },
-    { icon: Zap, label: 'Healing', color: 'text-purple-500', bg: 'bg-purple-50' },
-  ];
-
-  // Section configuration
+  // Section configuration with translations
   const sections = [
-    { id: 'description', label: 'Description', icon: BookOpen, desktopOnly: false },
-    { id: 'preparation', label: 'Preparation', icon: FlaskConical, desktopOnly: false },
-    { id: 'safety', label: 'Safety', icon: AlertTriangle, desktopOnly: false },
-    { id: 'source', label: 'Source', icon: BookOpen, desktopOnly: false },
-    { id: 'reviews', label: 'Reviews', icon: MessageCircle, desktopOnly: false },
+    { id: 'description', label: t('herb.detail.tabs.description'), icon: BookOpen, desktopOnly: false },
+    { id: 'preparation', label: t('herb.detail.tabs.preparation'), icon: FlaskConical, desktopOnly: false },
+    { id: 'safety', label: t('herb.detail.tabs.safety'), icon: AlertTriangle, desktopOnly: false },
+    { id: 'source', label: t('herb.detail.tabs.source'), icon: BookOpen, desktopOnly: false },
+    { id: 'reviews', label: t('herb.detail.tabs.reviews'), icon: MessageCircle, desktopOnly: false },
   ];
 
   return (
@@ -250,7 +242,7 @@ const HerbDetail = ({ herb }) => {
         className="flex items-center text-emerald-600 hover:text-emerald-700 mb-4 sm:mb-6 transition-all group"
       >
         <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5 mr-1 group-hover:-translate-x-1 transition-transform" />
-        <span className="text-xs sm:text-sm font-medium">Back</span>
+        <span className="text-xs sm:text-sm font-medium">{t('herb.detail.back')}</span>
       </button>
 
       {/* Hero Section - Herb Name Prominently Displayed */}
@@ -272,18 +264,15 @@ const HerbDetail = ({ herb }) => {
                 {averageRating.toFixed(1)} / 5
               </span>
               <span className="text-xs sm:text-sm text-gray-500">
-                ({totalRatings} {totalRatings === 1 ? 'review' : 'reviews'})
+                ({totalRatings} {totalRatings === 1 ? t('herb.detail.review') : t('herb.detail.reviews')})
               </span>
             </div>
             
+            {/* Added date */}
             <div className="flex flex-wrap items-center gap-3 sm:gap-4 mt-3 text-xs sm:text-sm text-gray-500">
               <div className="flex items-center">
                 <Calendar className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-                <span>Added {herbData.createdAt ? new Date(herbData.createdAt).toLocaleDateString() : 'Recently'}</span>
-              </div>
-              <div className="flex items-center">
-                <Eye className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-                <span>{herbData.views} views</span>
+                <span>{t('herb.detail.added')} {herbData.createdAt ? new Date(herbData.createdAt).toLocaleDateString() : t('herb.detail.recently')}</span>
               </div>
             </div>
           </div>
@@ -324,14 +313,6 @@ const HerbDetail = ({ herb }) => {
               {activeTab === 'description' && (
                 <div className="space-y-6">
                   <p className="text-gray-700 leading-relaxed whitespace-pre-line">{herbData.description}</p>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    {benefits.map((benefit, index) => (
-                      <div key={index} className={`${benefit.bg} rounded-xl p-3 text-center`}>
-                        <benefit.icon className={`h-6 w-6 ${benefit.color} mx-auto mb-2`} />
-                        <span className="text-xs font-medium text-gray-700">{benefit.label}</span>
-                      </div>
-                    ))}
-                  </div>
                 </div>
               )}
 
@@ -362,9 +343,6 @@ const HerbDetail = ({ herb }) => {
                       <p className="text-gray-700">{herbData.safetyWarning}</p>
                     )}
                   </div>
-                  {/* <div className="mt-4 p-4 bg-amber-50 rounded-xl border border-amber-100">
-                    <p className="text-sm text-amber-800">Always consult with a healthcare provider before using any herbal remedy.</p>
-                  </div> */}
                 </div>
               )}
 
@@ -376,10 +354,9 @@ const HerbDetail = ({ herb }) => {
                       <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
                         <p className="text-gray-700 whitespace-pre-line leading-relaxed">{herbData.source}</p>
                       </div>
-                      {/* <p className="text-xs text-gray-500">Information source for this herb's medicinal properties and usage</p> */}
                     </>
                   ) : (
-                    <p className="text-gray-500 italic">No source information available.</p>
+                    <p className="text-gray-500 italic">{t('herb.detail.source.no_info')}</p>
                   )}
                 </div>
               )}
@@ -390,18 +367,18 @@ const HerbDetail = ({ herb }) => {
                   <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                       <ThumbsUp className="h-5 w-5 text-emerald-600" />
-                      {userRating ? 'Update Your Rating' : 'Rate this Herb'}
+                      {userRating ? t('herb.detail.rating.update') : t('herb.detail.rating.rate')}
                     </h3>
                     <div className="space-y-4">
                       <div className="flex flex-col items-center gap-3">
-                        <span className="text-sm text-gray-600">Your Rating</span>
+                        <span className="text-sm text-gray-600">{t('herb.detail.rating.your_rating')}</span>
                         {renderInteractiveStars()}
                       </div>
                       <textarea
                         value={comment}
                         onChange={(e) => setComment(e.target.value)}
                         rows="3"
-                        placeholder="Share your experience..."
+                        placeholder={t('herb.detail.rating.placeholder')}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none resize-none"
                         disabled={isSubmitting}
                       />
@@ -414,7 +391,7 @@ const HerbDetail = ({ herb }) => {
                             : 'bg-emerald-600 text-white hover:bg-emerald-700'
                         }`}
                       >
-                        {isSubmitting ? 'Submitting...' : (userRating ? 'Update Rating' : 'Submit Rating')}
+                        {isSubmitting ? t('herb.detail.rating.submitting') : (userRating ? t('herb.detail.rating.update_btn') : t('herb.detail.rating.submit_btn'))}
                       </button>
                     </div>
                   </div>
@@ -422,14 +399,14 @@ const HerbDetail = ({ herb }) => {
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                       <MessageCircle className="h-5 w-5 text-emerald-600" />
-                      User Reviews ({totalRatings})
+                      {t('herb.detail.rating.user_reviews')} ({totalRatings})
                     </h3>
                     {isLoadingRatings ? (
-                      <div className="text-center py-8">Loading reviews...</div>
+                      <div className="text-center py-8">{t('herb.detail.rating.loading')}</div>
                     ) : ratings.length === 0 ? (
                       <div className="text-center py-8 bg-gray-50 rounded-xl">
                         <MessageCircle className="h-12 w-12 text-gray-300 mx-auto mb-2" />
-                        <p className="text-gray-500">No reviews yet. Be the first!</p>
+                        <p className="text-gray-500">{t('herb.detail.rating.no_reviews')}</p>
                       </div>
                     ) : (
                       <div className="space-y-4">
@@ -483,17 +460,7 @@ const HerbDetail = ({ herb }) => {
                   <div className="px-4 py-4 border-t border-gray-100 bg-gray-50/30">
                     {/* Description Section */}
                     {section.id === 'description' && (
-                      <div className="space-y-3">
-                        <p className="text-gray-700 leading-relaxed text-sm">{herbData.description}</p>
-                        <div className="grid grid-cols-2 gap-2">
-                          {benefits.map((benefit, index) => (
-                            <div key={index} className={`${benefit.bg} rounded-lg p-2 text-center`}>
-                              <benefit.icon className={`h-5 w-5 ${benefit.color} mx-auto mb-1`} />
-                              <span className="text-xs font-medium text-gray-700">{benefit.label}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
+                      <p className="text-gray-700 leading-relaxed text-sm">{herbData.description}</p>
                     )}
 
                     {/* Preparation Section */}
@@ -513,9 +480,6 @@ const HerbDetail = ({ herb }) => {
                             <p className="text-gray-700 text-sm flex-1">{point}.</p>
                           </div>
                         ))}
-                        <div className="mt-3 p-2 bg-amber-50 rounded-lg">
-                          {/* <p className="text-xs text-amber-700">Always consult a healthcare provider before use.</p> */}
-                        </div>
                       </div>
                     )}
 
@@ -523,14 +487,11 @@ const HerbDetail = ({ herb }) => {
                     {section.id === 'source' && (
                       <div>
                         {herbData.source ? (
-                          <>
-                            <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
-                              <p className="text-gray-700 text-sm">{herbData.source}</p>
-                            </div>
-                            <p className="text-xs text-gray-500 mt-2">Source for this herb's information</p>
-                          </>
+                          <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
+                            <p className="text-gray-700 text-sm">{herbData.source}</p>
+                          </div>
                         ) : (
-                          <p className="text-gray-500 text-sm italic">No source information available.</p>
+                          <p className="text-gray-500 text-sm italic">{t('herb.detail.source.no_info')}</p>
                         )}
                       </div>
                     )}
@@ -541,18 +502,18 @@ const HerbDetail = ({ herb }) => {
                         <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                           <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
                             <ThumbsUp className="h-4 w-4 text-emerald-600" />
-                            {userRating ? 'Update Rating' : 'Rate this Herb'}
+                            {userRating ? t('herb.detail.rating.update') : t('herb.detail.rating.rate')}
                           </h4>
                           <div className="space-y-3">
                             <div className="flex flex-col items-center gap-2">
-                              <span className="text-xs text-gray-600">Your Rating</span>
+                              <span className="text-xs text-gray-600">{t('herb.detail.rating.your_rating')}</span>
                               {renderInteractiveStars()}
                             </div>
                             <textarea
                               value={comment}
                               onChange={(e) => setComment(e.target.value)}
                               rows="2"
-                              placeholder="Share your experience..."
+                              placeholder={t('herb.detail.rating.placeholder')}
                               className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none resize-none"
                               disabled={isSubmitting}
                             />
@@ -565,7 +526,7 @@ const HerbDetail = ({ herb }) => {
                                   : 'bg-emerald-600 text-white hover:bg-emerald-700'
                               }`}
                             >
-                              {isSubmitting ? 'Submitting...' : (userRating ? 'Update Rating' : 'Submit Rating')}
+                              {isSubmitting ? t('herb.detail.rating.submitting') : (userRating ? t('herb.detail.rating.update_btn') : t('herb.detail.rating.submit_btn'))}
                             </button>
                           </div>
                         </div>
@@ -573,12 +534,12 @@ const HerbDetail = ({ herb }) => {
                         <div>
                           <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
                             <MessageCircle className="h-4 w-4 text-emerald-600" />
-                            User Reviews ({totalRatings})
+                            {t('herb.detail.rating.user_reviews')} ({totalRatings})
                           </h4>
                           {ratings.length === 0 ? (
                             <div className="text-center py-6 bg-gray-50 rounded-lg">
                               <MessageCircle className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-                              <p className="text-xs text-gray-500">No reviews yet.</p>
+                              <p className="text-xs text-gray-500">{t('herb.detail.rating.no_reviews_mobile')}</p>
                             </div>
                           ) : (
                             <div className="space-y-3">
@@ -617,19 +578,12 @@ const HerbDetail = ({ herb }) => {
         <div className="space-y-4 sm:space-y-6">
           {/* Quick Info Card */}
           <div className="bg-white rounded-xl sm:rounded-2xl border border-gray-200 p-4 sm:p-6 shadow-sm">
-            <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Quick Info</h3>
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">{t('herb.detail.quick_info')}</h3>
             <div className="space-y-2 sm:space-y-3">
-              {/* <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                <span className="text-xs sm:text-sm text-gray-600">Status</span>
-                <span className="text-xs sm:text-sm font-medium text-emerald-600 bg-emerald-50 px-2 sm:px-3 py-1 rounded-full">
-                  Published
-                </span>
-              </div> */}
-              
               <div className="py-2 border-b border-gray-100">
                 <div className="flex items-center gap-2 mb-2">
                   <Layers className="h-3 w-3 sm:h-4 sm:w-4 text-emerald-500" />
-                  <span className="text-xs sm:text-sm text-gray-600">Conditions Treated</span>
+                  <span className="text-xs sm:text-sm text-gray-600">{t('herb.detail.conditions_treated')}</span>
                 </div>
                 <div className="flex flex-wrap gap-1.5 sm:gap-2">
                   {herbData.conditionNames && herbData.conditionNames.length > 0 ? (
@@ -643,15 +597,15 @@ const HerbDetail = ({ herb }) => {
                       );
                     })
                   ) : (
-                    <span className="text-xs text-gray-500">General Wellness</span>
+                    <span className="text-xs text-gray-500">{t('herb.detail.general_wellness')}</span>
                   )}
                 </div>
               </div>
               
               <div className="flex justify-between items-center py-2">
-                <span className="text-xs sm:text-sm text-gray-600">Last Updated</span>
+                <span className="text-xs sm:text-sm text-gray-600">{t('herb.detail.last_updated')}</span>
                 <span className="text-xs sm:text-sm font-medium text-gray-900">
-                  {herbData.updatedAt ? new Date(herbData.updatedAt).toLocaleDateString() : 'Today'}
+                  {herbData.updatedAt ? new Date(herbData.updatedAt).toLocaleDateString() : t('herb.detail.today')}
                 </span>
               </div>
             </div>
@@ -661,12 +615,14 @@ const HerbDetail = ({ herb }) => {
           <div className="bg-gradient-to-br from-yellow-50 to-white rounded-xl sm:rounded-2xl border border-yellow-100 p-4 sm:p-6 shadow-sm">
             <div className="flex items-center gap-2 mb-3">
               <Star className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-500 fill-current" />
-              <h3 className="text-sm sm:text-base font-semibold text-gray-900">Rating Summary</h3>
+              <h3 className="text-sm sm:text-base font-semibold text-gray-900">{t('herb.detail.rating_summary')}</h3>
             </div>
             <div className="text-center">
               <div className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">{averageRating.toFixed(1)}</div>
               <div className="flex justify-center mb-2">{renderStars(averageRating, "h-4 w-4 sm:h-5 sm:w-5")}</div>
-              <p className="text-xs sm:text-sm text-gray-600">Based on {totalRatings} {totalRatings === 1 ? 'review' : 'reviews'}</p>
+              <p className="text-xs sm:text-sm text-gray-600">
+                {t('herb.detail.based_on')} {totalRatings} {totalRatings === 1 ? t('herb.detail.review') : t('herb.detail.reviews')}
+              </p>
             </div>
             {!userRating && user && (
               <button 
@@ -676,30 +632,10 @@ const HerbDetail = ({ herb }) => {
                 }} 
                 className="mt-4 w-full text-center text-xs sm:text-sm font-medium text-emerald-600"
               >
-                Rate this herb →
+                {t('herb.detail.rate_button')}
               </button>
             )}
           </div>
-
-          {/* Source Summary Card */}
-          {/* {herbData.source && herbData.source.trim() !== '' && (
-            <div className="bg-gradient-to-br from-blue-50 to-white rounded-xl sm:rounded-2xl border border-blue-100 p-4 sm:p-6 shadow-sm">
-              <div className="flex items-center gap-2 mb-3">
-                <BookOpen className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
-                <h3 className="text-sm sm:text-base font-semibold text-gray-900">Source Info</h3>
-              </div>
-              <p className="text-xs sm:text-sm text-gray-700 line-clamp-3 mb-3">{herbData.source.substring(0, 100)}...</p>
-              <button 
-                onClick={() => {
-                  setActiveTab('source');
-                  if (window.innerWidth < 1024) toggleSection('source');
-                }} 
-                className="text-xs sm:text-sm font-medium text-blue-600"
-              >
-                View full source →
-              </button>
-            </div>
-          )} */}
         </div>
       </div>
     </div>

@@ -1,6 +1,5 @@
 // client/src/services/herbApi.js
-// Use import.meta.env for Vite
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://herbisense-api.onrender.com/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://10.48.136.233:5001/api';
 
 // Helper function for API calls
 const apiCall = async (endpoint, options = {}) => {
